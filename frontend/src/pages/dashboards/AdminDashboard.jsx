@@ -19,6 +19,8 @@ import {
   PlusCircle,
   Sparkles,
   Bot,
+  UserPlus,
+  Download,
   X
 } from 'lucide-react';
 
@@ -75,6 +77,13 @@ export default function AdminDashboard() {
   });
   const [postingAnnounce, setPostingAnnounce] = useState(false);
 
+  // Bulk Student Import State (Phase 6)
+  const [importFile, setImportFile] = useState(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [confirmingImport, setConfirmingImport] = useState(false);
+  const [previewData, setPreviewData] = useState(null);
+  const [previewFilter, setPreviewFilter] = useState('all'); // 'all' | 'valid' | 'invalid'
+
   const fetchAllData = async () => {
     setLoading(true);
     setError(null);
@@ -119,6 +128,54 @@ export default function AdminDashboard() {
       setError(err.message || 'Error triggering document indexing.');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  // --- Bulk Student Import Handlers (Phase 6) ---
+  const handlePreviewImport = async (e) => {
+    e.preventDefault();
+    if (!importFile) return;
+
+    setPreviewLoading(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', importFile);
+      const res = await api.previewStudentImport(formData);
+      if (res.success && res.data) {
+        setPreviewData(res.data);
+        setMessage(`File parsed successfully: ${res.data.valid_count} valid records, ${res.data.invalid_count} row(s) with errors.`);
+      } else {
+        setError(res.error || 'Failed to preview student file.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error processing file preview.');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!previewData || !previewData.valid_rows || previewData.valid_rows.length === 0) return;
+
+    setConfirmingImport(true);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await api.confirmStudentImport({ students: previewData.valid_rows });
+      if (res.success && res.data) {
+        setMessage(`Successfully imported ${res.data.imported_count} student account(s) into the database!`);
+        setPreviewData(null);
+        setImportFile(null);
+        fetchAllData();
+      } else {
+        setError(res.error || 'Failed to import student accounts.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error committing student import.');
+    } finally {
+      setConfirmingImport(false);
     }
   };
 
@@ -392,6 +449,15 @@ export default function AdminDashboard() {
           <div className="card-value">{documents.length}</div>
           <div className="card-subtitle">Uploaded college PDFs</div>
         </div>
+
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">Enrolled Students</div>
+            <Users size={18} color="var(--primary-600)" />
+          </div>
+          <div className="card-value">{stats ? stats.students : 0}</div>
+          <div className="card-subtitle">Active student profiles</div>
+        </div>
       </div>
 
       {/* Admin Feature Tabs */}
@@ -426,6 +492,14 @@ export default function AdminDashboard() {
         >
           <PlusCircle size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
           Direct Announcement Publisher
+        </button>
+
+        <button
+          className={`tab-btn ${activeTab === 'import' ? 'active' : ''}`}
+          onClick={() => setActiveTab('import')}
+        >
+          <UserPlus size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
+          Bulk Student Import (CSV / Excel)
         </button>
       </div>
 
@@ -989,6 +1063,211 @@ export default function AdminDashboard() {
               {postingAnnounce ? 'Publishing...' : 'Publish Official Announcement Now'}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* TAB 5: Bulk Student Import (Phase 6) */}
+      {activeTab === 'import' && (
+        <div>
+          {/* Upload & Instructions Box */}
+          <div className="section-box" style={{ marginTop: 0, marginBottom: '1.5rem' }}>
+            <div className="section-header">
+              <div className="section-heading">
+                <UserPlus size={20} color="var(--primary-600)" />
+                Student Bulk Import Engine (Pandas CSV & Excel Ingestion)
+              </div>
+              <span className="badge badge-info">Administrator Only</span>
+            </div>
+
+            <p style={{ color: 'var(--slate-600)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+              Upload a <code>.csv</code>, <code>.xlsx</code>, or <code>.xls</code> spreadsheet containing student enrollments.
+              The Pandas import service validates required columns, flags duplicate roll numbers/emails, and generates personalized student preference profiles upon confirmation.
+            </p>
+
+            <div style={{
+              background: '#f8fafc',
+              border: '1px solid var(--slate-200)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.85rem 1.15rem',
+              marginBottom: '1.25rem',
+              fontSize: '0.825rem',
+              color: 'var(--slate-700)'
+            }}>
+              <strong>Required Headers:</strong> <code>Name</code>, <code>Email</code>, <code>Roll Number</code>, <code>Course</code>.
+              <span style={{ color: 'var(--slate-500)', marginLeft: '0.5rem' }}>(Optional: <code>Password</code> — defaults to <code>StudentPassword2026</code> if omitted)</span>
+            </div>
+
+            <form onSubmit={handlePreviewImport} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                  Select CSV or Excel Spreadsheet *
+                </label>
+                <input
+                  type="file"
+                  accept=".csv,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+                  onChange={(e) => setImportFile(e.target.files[0] || null)}
+                  required
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="submit"
+                  disabled={previewLoading || !importFile}
+                  className="btn btn-primary"
+                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.85rem' }}
+                >
+                  <RefreshCw size={14} className={previewLoading ? 'spin' : ''} />
+                  {previewLoading ? 'Analyzing & Validating...' : 'Preview & Validate File'}
+                </button>
+
+                {previewData && (
+                  <button
+                    type="button"
+                    onClick={() => { setPreviewData(null); setImportFile(null); }}
+                    className="btn btn-secondary"
+                    style={{ padding: '0.65rem 0.95rem', fontSize: '0.85rem' }}
+                  >
+                    Clear Preview
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* Validation Preview Results */}
+          {previewData && (
+            <div className="section-box" style={{ marginTop: 0 }}>
+              <div className="section-header">
+                <div className="section-heading">
+                  <Database size={20} color="var(--primary-600)" />
+                  Validation Results Preview ({previewData.total_rows} Total Rows)
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <span className="badge badge-success">
+                    <CheckCircle2 size={12} /> {previewData.valid_count} Valid
+                  </span>
+                  {previewData.invalid_count > 0 && (
+                    <span className="badge badge-error">
+                      <XCircle size={12} /> {previewData.invalid_count} Invalid
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Filter Pills */}
+              <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFilter('all')}
+                  className={`btn ${previewFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                >
+                  All ({previewData.total_rows})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPreviewFilter('valid')}
+                  className={`btn ${previewFilter === 'valid' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                >
+                  Valid Only ({previewData.valid_count})
+                </button>
+                {previewData.invalid_count > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setPreviewFilter('invalid')}
+                    className={`btn ${previewFilter === 'invalid' ? 'btn-primary' : 'btn-secondary'}`}
+                    style={{ padding: '0.3rem 0.75rem', fontSize: '0.8rem' }}
+                  >
+                    Errors Only ({previewData.invalid_count})
+                  </button>
+                )}
+              </div>
+
+              {/* Table */}
+              <div className="table-wrapper" style={{ maxHeight: '420px', overflowY: 'auto' }}>
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: '60px' }}>Row</th>
+                      <th>Student Name</th>
+                      <th>Roll Number</th>
+                      <th>Course</th>
+                      <th>Email</th>
+                      <th>Status / Validation Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(previewFilter === 'invalid'
+                      ? previewData.invalid_rows
+                      : previewFilter === 'valid'
+                        ? previewData.valid_rows
+                        : [...previewData.valid_rows, ...previewData.invalid_rows].sort((a, b) => a.row_num - b.row_num)
+                    ).map((row, idx) => {
+                      const isInvalid = Boolean(row.error_reason);
+                      return (
+                        <tr key={idx} style={{ background: isInvalid ? '#fff5f5' : 'transparent' }}>
+                          <td><code>#{row.row_num}</code></td>
+                          <td><strong>{row.name || <em style={{ color: '#dc2626' }}>Missing</em>}</strong></td>
+                          <td><code>{row.roll_number || <em style={{ color: '#dc2626' }}>Missing</em>}</code></td>
+                          <td><span className="badge badge-secondary">{row.course || 'Missing'}</span></td>
+                          <td>{row.email || <em style={{ color: '#dc2626' }}>Missing</em>}</td>
+                          <td>
+                            {isInvalid ? (
+                              <span className="badge badge-error" style={{ fontSize: '0.75rem', whiteSpace: 'normal', maxWidth: '300px', display: 'inline-block' }}>
+                                <AlertCircle size={11} style={{ display: 'inline', marginRight: '3px' }} />
+                                {row.error_reason}
+                              </span>
+                            ) : (
+                              <span className="badge badge-success">
+                                <CheckCircle2 size={12} /> Ready to Import
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Confirmation Callout */}
+              <div style={{
+                marginTop: '1.5rem',
+                paddingTop: '1.25rem',
+                borderTop: '1px solid var(--slate-200)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '1rem'
+              }}>
+                <div style={{ fontSize: '0.85rem', color: 'var(--slate-600)' }}>
+                  {previewData.valid_count > 0 ? (
+                    <>Clicking confirm will securely hash passwords and initialize interest profiles for all <strong>{previewData.valid_count}</strong> valid student accounts.</>
+                  ) : (
+                    <span style={{ color: '#dc2626' }}>No valid records to import. Please correct the spreadsheet errors and re-upload.</span>
+                  )}
+                </div>
+
+                {previewData.valid_count > 0 && (
+                  <button
+                    type="button"
+                    onClick={handleConfirmImport}
+                    disabled={confirmingImport}
+                    className="btn btn-primary"
+                    style={{ padding: '0.75rem 1.5rem', fontSize: '0.9rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    <UserPlus size={16} />
+                    {confirmingImport ? 'Importing Accounts...' : `Confirm & Import ${previewData.valid_count} Student Accounts`}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

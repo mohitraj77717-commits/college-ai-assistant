@@ -206,6 +206,20 @@ export const api = {
     }),
   indexDocument: (docId) =>
     request(`/api/documents/${docId}/index`, { method: 'POST' }),
+
+  // =================================================================
+  // Phase 6: Student Bulk Import (Pandas CSV / Excel)
+  // =================================================================
+  previewStudentImport: (formData) =>
+    request('/api/admin/import/preview', {
+      method: 'POST',
+      body: formData,
+    }),
+  confirmStudentImport: (payload) =>
+    request('/api/admin/import/confirm', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export default api;

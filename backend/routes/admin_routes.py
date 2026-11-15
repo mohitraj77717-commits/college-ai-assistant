@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from database import query_db, execute_db
 from auth import role_required
 from services.notification_service import fanout_announcement_notifications
+from services.import_service import parse_and_preview_student_file, commit_student_batch
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
@@ -302,3 +303,48 @@ def get_system_stats():
             'pending_submissions': pending_submissions
         }
     }), 200
+
+
+# =====================================================================
+# Bulk Student CSV/Excel Import (Phase 6)
+# =====================================================================
+
+@admin_bp.route('/import/preview', methods=['POST'])
+@role_required('admin')
+def preview_student_import():
+    """
+    Administrator uploads a CSV or Excel file of student records.
+    Validates formatting and conflicts with Pandas without writing to the database.
+    """
+    uploaded_file = request.files.get('file')
+    if not uploaded_file or not uploaded_file.filename:
+        return jsonify({
+            'status': 'error',
+            'message': 'Please select a CSV or Excel file to preview.'
+        }), 400
+
+    result = parse_and_preview_student_file(uploaded_file.stream, uploaded_file.filename)
+    status_code = 200 if result.get('status') == 'success' else 400
+    return jsonify(result), status_code
+
+
+@admin_bp.route('/import/confirm', methods=['POST'])
+@role_required('admin')
+def confirm_student_import():
+    """
+    Administrator confirms insertion of pre-validated student records.
+    Hashes passwords, batch inserts into SQLite students table, and initializes preferences.
+    """
+    data = request.get_json() or {}
+    students = data.get('students', [])
+
+    if not isinstance(students, list) or len(students) == 0:
+        return jsonify({
+            'status': 'error',
+            'message': 'No student records provided for import.'
+        }), 400
+
+    result = commit_student_batch(students)
+    status_code = 200 if result.get('status') == 'success' else 400
+    return jsonify(result), status_code
+

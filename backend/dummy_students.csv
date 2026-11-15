@@ -1,0 +1,13 @@
+name,email,roll_number,course,password
+Aarav Sharma,aarav.sharma@example.com,CSE2026-01,B.Tech Computer Science & Engineering (AI & ML),StudentPass2026
+Diya Patel,diya.patel@example.com,CSE2026-02,B.Tech Computer Science & Engineering (AI & ML),StudentPass2026
+Rohan Verma,rohan.verma@example.com,CSE2026-03,B.Tech Computer Science & Engineering,StudentPass2026
+Ananya Iyer,ananya.iyer@example.com,CSE2026-04,B.Tech Computer Science & Engineering,StudentPass2026
+Vikram Singh,vikram.singh@example.com,ECE2026-05,B.Tech Electronics & Communication,StudentPass2026
+Meera Nair,meera.nair@example.com,ECE2026-06,B.Tech Electronics & Communication,StudentPass2026
+Kabir Mehta,kabir.mehta@example.com,DS2026-07,B.Tech Data Science & Analytics,StudentPass2026
+Sanya Gupta,sanya.gupta@example.com,DS2026-08,B.Tech Data Science & Analytics,StudentPass2026
+Aditya Joshi,aditya.joshi@example.com,ROB2026-09,B.Tech Robotics & Automation,StudentPass2026
+Tara Sen,tara.sen@example.com,ROB2026-10,B.Tech Robotics & Automation,StudentPass2026
+Kunal Deshmukh,kunal.deshmukh@example.com,MTC2026-11,M.Tech Computer Science,StudentPass2026
+Ishita Roy,ishita.roy@example.com,MTC2026-12,M.Tech Computer Science,StudentPass2026

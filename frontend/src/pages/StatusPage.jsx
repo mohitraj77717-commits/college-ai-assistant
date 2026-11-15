@@ -461,7 +461,7 @@ export default function StatusPage() {
               <BookOpen size={20} color="var(--primary-600)" />
               Implementation Roadmap
             </div>
-            <span className="badge badge-success">Phase 5 Complete</span>
+            <span className="badge badge-success">All 6 Phases Complete</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -498,7 +498,7 @@ export default function StatusPage() {
             <RoadmapItem
               number={6}
               title="Phase 6 — Data Import, Demo Datasets & Verification"
-              status="active"
+              status="completed"
               desc="Pandas CSV/Excel student import with preview and validation, dummy_students.csv, dummy_teachers.csv, end-to-end testing across all 3 roles."
             />
           </div>
