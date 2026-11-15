@@ -194,6 +194,18 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(payload),
     }),
+
+  // =================================================================
+  // Phase 5: Gemini File Search RAG & College Chatbot
+  // =================================================================
+  getChatbotStatus: () => request('/api/chatbot/status'),
+  askChatbot: (payload) =>
+    request('/api/chatbot/ask', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  indexDocument: (docId) =>
+    request(`/api/documents/${docId}/index`, { method: 'POST' }),
 };
 
 export default api;

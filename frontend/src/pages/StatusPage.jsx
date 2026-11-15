@@ -461,7 +461,7 @@ export default function StatusPage() {
               <BookOpen size={20} color="var(--primary-600)" />
               Implementation Roadmap
             </div>
-            <span className="badge badge-success">Phase 4 Complete</span>
+            <span className="badge badge-success">Phase 5 Complete</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -492,13 +492,13 @@ export default function StatusPage() {
             <RoadmapItem
               number={5}
               title="Phase 5 — Gemini File Search & College Chatbot"
-              status="active"
-              desc="Gemini File Search API store management, indexing of approved PDFs, chatbot query endpoint with source references, graceful fallback when facts are missing."
+              status="completed"
+              desc="Gemini File Search API store management, indexing of approved PDFs, chatbot query endpoint with source references, floating interactive assistant UI with strictly grounded facts."
             />
             <RoadmapItem
               number={6}
               title="Phase 6 — Data Import, Demo Datasets & Verification"
-              status="upcoming"
+              status="active"
               desc="Pandas CSV/Excel student import with preview and validation, dummy_students.csv, dummy_teachers.csv, end-to-end testing across all 3 roles."
             />
           </div>

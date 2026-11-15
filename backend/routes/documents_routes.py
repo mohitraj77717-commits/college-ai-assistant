@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify, send_file
 from database import query_db, execute_db
 from auth import token_required, role_required
 from services.file_service import save_pdf_upload, resolve_safe_path
+from services.gemini_service import index_approved_document, is_gemini_available
 
 documents_bp = Blueprint('documents', __name__, url_prefix='/api/documents')
 
@@ -161,3 +162,16 @@ def view_document_file(doc_id: int):
         return jsonify({'status': 'error', 'message': 'File not found on server.'}), 404
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
+
+
+@documents_bp.route('/<int:doc_id>/index', methods=['POST'])
+@role_required('admin')
+def index_document(doc_id: int):
+    """
+    Administrator triggers Gemini File Search indexing for an approved document.
+    Maintains decoupled lifecycle: if indexing fails, approval status is preserved.
+    """
+    result = index_approved_document(doc_id)
+    status_code = 200 if result.get('status') in ('success', 'warning') else 400
+    return jsonify(result), status_code
+

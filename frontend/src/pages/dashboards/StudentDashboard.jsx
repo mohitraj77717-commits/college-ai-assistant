@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import CollegeChatbot from '../../components/CollegeChatbot';
 import {
   GraduationCap,
   Sparkles,
@@ -732,6 +733,9 @@ export default function StudentDashboard() {
           </div>
         </div>
       )}
+
+      {/* Phase 5: Floating College AI Chatbot */}
+      <CollegeChatbot />
     </div>
   );
 }

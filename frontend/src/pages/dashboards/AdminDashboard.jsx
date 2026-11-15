@@ -17,6 +17,8 @@ import {
   FileUp,
   Database,
   PlusCircle,
+  Sparkles,
+  Bot,
   X
 } from 'lucide-react';
 
@@ -46,6 +48,7 @@ export default function AdminDashboard() {
   const [teacherSubmissions, setTeacherSubmissions] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [stats, setStats] = useState(null);
+  const [chatbotStatus, setChatbotStatus] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [message, setMessage] = useState(null);
@@ -76,21 +79,46 @@ export default function AdminDashboard() {
     setLoading(true);
     setError(null);
     try {
-      const [teachersRes, subsRes, docsRes, statsRes] = await Promise.all([
+      const [teachersRes, subsRes, docsRes, statsRes, botRes] = await Promise.all([
         api.getPendingTeachers(),
         api.getTeacherSubmissionsAdmin('pending'),
         api.getDocuments(),
         api.getAdminStats(),
+        api.getChatbotStatus(),
       ]);
 
       if (teachersRes.success) setPendingTeachers(teachersRes.data?.teachers || []);
       if (subsRes.success) setTeacherSubmissions(subsRes.data?.submissions || []);
       if (docsRes.success) setDocuments(docsRes.data?.documents || []);
       if (statsRes.success) setStats(statsRes.data?.stats || null);
+      if (botRes.success) setChatbotStatus(botRes.data || null);
     } catch (err) {
       setError(err.message || 'Error fetching administrator records');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleIndexDocument = async (docId, docTitle) => {
+    setActionLoading(`index-${docId}`);
+    setMessage(null);
+    setError(null);
+    try {
+      const res = await api.indexDocument(docId);
+      if (res.success) {
+        if (res.data?.status === 'warning') {
+          setMessage(res.data?.message || `Document "${docTitle}" approved, but GEMINI_API_KEY is not configured.`);
+        } else {
+          setMessage(`Document "${docTitle}" indexed successfully into Gemini File Search!`);
+        }
+        fetchAllData();
+      } else {
+        setError(res.error || 'Failed to index document.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error triggering document indexing.');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -509,6 +537,58 @@ export default function AdminDashboard() {
       {/* TAB 2: Official College Documents Manager */}
       {activeTab === 'documents' && (
         <div>
+          {/* Gemini RAG Status Card */}
+          <div style={{
+            background: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '1.25rem 1.5rem',
+            color: 'white',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '1rem',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div style={{
+                width: '42px',
+                height: '42px',
+                borderRadius: '50%',
+                background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'white'
+              }}>
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  Gemini File Search Knowledge Base
+                  <span style={{
+                    fontSize: '0.7rem',
+                    padding: '0.15rem 0.5rem',
+                    borderRadius: 'var(--radius-full)',
+                    background: chatbotStatus?.gemini_configured ? '#166534' : '#854d0e',
+                    color: chatbotStatus?.gemini_configured ? '#bbf7d0' : '#fef08a',
+                    fontWeight: 600
+                  }}>
+                    {chatbotStatus?.gemini_configured ? 'API Key Active' : 'Standby Mode'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#cbd5e1', marginTop: '0.2rem' }}>
+                  {chatbotStatus?.indexed_documents_count || 0} document(s) indexed for grounded chatbot answers &bull; {chatbotStatus?.approved_documents_count || documents.filter(d => d.approval_status === 'approved').length} approved
+                </div>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '0.75rem', color: '#94a3b8', maxWidth: '320px', textAlign: 'right' }}>
+              Approved PDFs are indexed into Gemini File Search stores so students receive strictly grounded answers with citations.
+            </div>
+          </div>
+
           {/* Direct PDF Upload Form */}
           <div className="section-box" style={{ marginTop: 0, marginBottom: '1.5rem' }}>
             <div className="section-header">
@@ -520,7 +600,7 @@ export default function AdminDashboard() {
             </div>
 
             <p style={{ color: 'var(--slate-600)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-              Upload official university PDFs (academic calendar, rules, examination policies, syllabus). These documents are approved directly without requiring a teacher account. In Phase 5, they are indexed into the Gemini File Search knowledge store.
+              Upload official university PDFs (academic calendar, rules, examination policies, syllabus). These documents are approved directly without requiring a teacher account, and can be indexed with one click into Gemini File Search.
             </p>
 
             <form onSubmit={handleAdminDocUpload} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
@@ -597,6 +677,7 @@ export default function AdminDashboard() {
                       <th>Approval Status</th>
                       <th>Gemini Indexing</th>
                       <th>Uploaded At</th>
+                      <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -622,12 +703,41 @@ export default function AdminDashboard() {
                           </span>
                         </td>
                         <td>
-                          <span className={`badge ${doc.indexing_status === 'indexed' ? 'badge-success' : 'badge-warning'}`}>
-                            {doc.indexing_status === 'indexed' ? 'Indexed (Chatbot Ready)' : 'Not Indexed (Phase 5)'}
+                          <span className={`badge ${doc.indexing_status === 'indexed' ? 'badge-success' : doc.indexing_status === 'failed' ? 'badge-error' : 'badge-warning'}`}>
+                            {doc.indexing_status === 'indexed' ? 'Indexed (Chatbot Ready)' : doc.indexing_status === 'failed' ? 'Indexing Failed' : 'Not Indexed'}
                           </span>
                         </td>
                         <td style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
                           {doc.created_at || 'Recently'}
+                        </td>
+                        <td>
+                          {doc.approval_status === 'approved' ? (
+                            doc.indexing_status === 'indexed' ? (
+                              <button
+                                onClick={() => handleIndexDocument(doc.id, doc.title)}
+                                disabled={actionLoading === `index-${doc.id}`}
+                                className="btn btn-secondary"
+                                style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                title="Re-index document into Gemini"
+                              >
+                                <RefreshCw size={11} className={actionLoading === `index-${doc.id}` ? 'spin' : ''} />
+                                {actionLoading === `index-${doc.id}` ? 'Indexing...' : 'Re-Index'}
+                              </button>
+                            ) : (
+                              <button
+                                onClick={() => handleIndexDocument(doc.id, doc.title)}
+                                disabled={actionLoading === `index-${doc.id}`}
+                                className="btn btn-primary"
+                                style={{ padding: '0.3rem 0.65rem', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                title="Index document with Gemini File Search"
+                              >
+                                <Sparkles size={12} />
+                                {actionLoading === `index-${doc.id}` ? 'Indexing...' : 'Index with Gemini'}
+                              </button>
+                            )
+                          ) : (
+                            <span style={{ fontSize: '0.75rem', color: 'var(--slate-400)' }}>Awaiting approval</span>
+                          )}
                         </td>
                       </tr>
                     ))}
