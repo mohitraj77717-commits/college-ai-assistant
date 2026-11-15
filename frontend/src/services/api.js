@@ -16,25 +16,26 @@ export const tokenStorage = {
 
 /**
  * Universal fetch wrapper with JSON handling and token injection.
+ * Supports FormData for multipart file uploads.
  */
 async function request(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
   const token = tokenStorage.get();
 
-  const defaultHeaders = {
-    'Content-Type': 'application/json',
-  };
+  const isFormData = options.body instanceof FormData;
+  const headers = { ...options.headers };
+
+  if (!isFormData && !headers['Content-Type']) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   if (token) {
-    defaultHeaders['Authorization'] = `Bearer ${token}`;
+    headers['Authorization'] = `Bearer ${token}`;
   }
 
   const config = {
     ...options,
-    headers: {
-      ...defaultHeaders,
-      ...options.headers,
-    },
+    headers,
   };
 
   try {
@@ -127,6 +128,59 @@ export const api = {
   rejectTeacher: (teacherId) =>
     request(`/api/admin/teachers/${teacherId}/reject`, { method: 'POST' }),
   getAdminStats: () => request('/api/admin/stats'),
+
+  // =================================================================
+  // Phase 3: Announcements, Submissions & Documents
+  // =================================================================
+
+  // Announcements Feed
+  getAnnouncements: (params = {}) => {
+    const query = new URLSearchParams();
+    if (params.course) query.append('course', params.course);
+    if (params.category) query.append('category', params.category);
+    if (params.search) query.append('search', params.search);
+    if (params.limit) query.append('limit', params.limit);
+    const qs = query.toString();
+    return request(qs ? `/api/announcements?${qs}` : '/api/announcements');
+  },
+
+  getAnnouncement: (id) => request(`/api/announcements/${id}`),
+
+  // Teacher Notice & Announcement Submissions
+  submitTeacherAnnouncement: (formData) =>
+    request('/api/teacher/submit', {
+      method: 'POST',
+      body: formData,
+    }),
+
+  getTeacherSubmissions: () => request('/api/teacher/my-submissions'),
+
+  // Admin Direct PDF Upload & Document Management
+  adminUploadDocument: (formData) =>
+    request('/api/documents/admin-upload', {
+      method: 'POST',
+      body: formData,
+    }),
+
+  getDocuments: () => request('/api/documents'),
+  approveDocument: (docId) => request(`/api/documents/${docId}/approve`, { method: 'POST' }),
+  rejectDocument: (docId) => request(`/api/documents/${docId}/reject`, { method: 'POST' }),
+
+  // Admin Submissions Review
+  getTeacherSubmissionsAdmin: (status = 'pending') =>
+    request(`/api/admin/submissions?status=${status}`),
+
+  reviewTeacherSubmission: (submissionId, reviewPayload) =>
+    request(`/api/admin/submissions/${submissionId}/review`, {
+      method: 'POST',
+      body: JSON.stringify(reviewPayload),
+    }),
+
+  adminCreateAnnouncement: (payload) =>
+    request('/api/admin/announcements/create', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
 };
 
 export default api;

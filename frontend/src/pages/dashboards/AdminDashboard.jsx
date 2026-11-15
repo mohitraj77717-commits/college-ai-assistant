@@ -1,81 +1,249 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
-import { Shield, Users, CheckCircle2, XCircle, Clock, RefreshCw, AlertCircle, FileText, Upload, Database } from 'lucide-react';
+import {
+  Shield,
+  Users,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  RefreshCw,
+  AlertCircle,
+  FileText,
+  Upload,
+  Calendar,
+  ExternalLink,
+  MessageSquare,
+  FileUp,
+  Database,
+  PlusCircle,
+  X
+} from 'lucide-react';
+
+const COURSES = [
+  'All',
+  'B.Tech Computer Science & Engineering (AI & ML)',
+  'B.Tech Computer Science & Engineering',
+  'B.Tech Electronics & Communication',
+  'B.Tech Data Science & Analytics',
+  'B.Tech Robotics & Automation',
+  'M.Tech Computer Science',
+];
+
+const CATEGORIES = [
+  { id: 'ai-ml', label: 'AI & Machine Learning' },
+  { id: 'coding', label: 'Coding / Competitions' },
+  { id: 'robotics', label: 'Robotics & Hardware' },
+  { id: 'cultural', label: 'Cultural & Arts Events' },
+  { id: 'academic', label: 'Academic Notices' },
+  { id: 'general', label: 'General University Announcement' },
+];
 
 export default function AdminDashboard() {
   const { user } = useAuth();
+  const [activeTab, setActiveTab] = useState('submissions'); // 'submissions' | 'documents' | 'teachers' | 'direct_post'
   const [pendingTeachers, setPendingTeachers] = useState([]);
+  const [teacherSubmissions, setTeacherSubmissions] = useState([]);
+  const [documents, setDocuments] = useState([]);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(null);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
 
-  const fetchAdminData = async () => {
+  // Reject Feedback Modal State
+  const [rejectModalSubmission, setRejectModalSubmission] = useState(null);
+  const [feedbackText, setFeedbackText] = useState('');
+
+  // Admin Direct PDF Upload State
+  const [docUploadTitle, setDocUploadTitle] = useState('');
+  const [docUploadFile, setDocUploadFile] = useState(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  // Admin Direct Announcement Form State
+  const [directAnnounce, setDirectAnnounce] = useState({
+    title: '',
+    category: 'academic',
+    course: 'All',
+    event_date: '',
+    deadline: '',
+    registration_link: '',
+    description: '',
+  });
+  const [postingAnnounce, setPostingAnnounce] = useState(false);
+
+  const fetchAllData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [teachersRes, statsRes] = await Promise.all([
+      const [teachersRes, subsRes, docsRes, statsRes] = await Promise.all([
         api.getPendingTeachers(),
-        api.getAdminStats()
+        api.getTeacherSubmissionsAdmin('pending'),
+        api.getDocuments(),
+        api.getAdminStats(),
       ]);
 
-      if (teachersRes.success) {
-        setPendingTeachers(teachersRes.data?.teachers || []);
-      } else {
-        setError(`Failed to load pending teachers: ${teachersRes.error}`);
-      }
-
-      if (statsRes.success) {
-        setStats(statsRes.data?.stats || null);
-      }
+      if (teachersRes.success) setPendingTeachers(teachersRes.data?.teachers || []);
+      if (subsRes.success) setTeacherSubmissions(subsRes.data?.submissions || []);
+      if (docsRes.success) setDocuments(docsRes.data?.documents || []);
+      if (statsRes.success) setStats(statsRes.data?.stats || null);
     } catch (err) {
-      setError(err.message || 'Error fetching administrator dashboard data');
+      setError(err.message || 'Error fetching administrator records');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchAdminData();
+    fetchAllData();
   }, []);
 
-  const handleApprove = async (teacherId, teacherName) => {
-    setActionLoading(teacherId);
+  // --- Teacher Review Actions ---
+  const handleApproveSubmission = async (submissionId, title) => {
+    setActionLoading(`sub-${submissionId}`);
     setMessage(null);
     setError(null);
     try {
-      const res = await api.approveTeacher(teacherId);
+      const res = await api.reviewTeacherSubmission(submissionId, {
+        action: 'approve',
+        feedback: 'Approved by administrator.',
+      });
       if (res.success) {
-        setMessage(`Successfully approved ${teacherName}. They can now sign in.`);
-        fetchAdminData();
+        setMessage(`Approved and published announcement: "${title}"!`);
+        fetchAllData();
       } else {
-        setError(res.error || 'Failed to approve teacher account.');
+        setError(res.error || 'Failed to approve submission.');
       }
     } catch (err) {
-      setError(err.message || 'Error during approval.');
+      setError(err.message || 'Error during review.');
     } finally {
       setActionLoading(null);
     }
   };
 
-  const handleReject = async (teacherId, teacherName) => {
-    setActionLoading(teacherId);
+  const handleOpenRejectModal = (submission) => {
+    setRejectModalSubmission(submission);
+    setFeedbackText('Please update the details and resubmit for approval.');
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectModalSubmission) return;
+    setActionLoading(`sub-${rejectModalSubmission.id}`);
     setMessage(null);
     setError(null);
     try {
-      const res = await api.rejectTeacher(teacherId);
+      const res = await api.reviewTeacherSubmission(rejectModalSubmission.id, {
+        action: 'reject',
+        feedback: feedbackText.trim() || 'Submission rejected by administrator.',
+      });
       if (res.success) {
-        setMessage(`Rejected application for ${teacherName}.`);
-        fetchAdminData();
+        setMessage(`Rejected submission "${rejectModalSubmission.title}" with feedback.`);
+        setRejectModalSubmission(null);
+        setFeedbackText('');
+        fetchAllData();
       } else {
-        setError(res.error || 'Failed to reject teacher application.');
+        setError(res.error || 'Failed to reject submission.');
       }
     } catch (err) {
       setError(err.message || 'Error during rejection.');
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  // --- Document Upload Actions ---
+  const handleAdminDocUpload = async (e) => {
+    e.preventDefault();
+    if (!docUploadTitle || !docUploadFile) {
+      setError('Please provide document title and select a PDF file.');
+      return;
+    }
+
+    setUploadingDoc(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.append('title', docUploadTitle);
+      formData.append('file', docUploadFile);
+      formData.append('auto_approve', 'true');
+
+      const res = await api.adminUploadDocument(formData);
+      if (res.success) {
+        setMessage(`Official document "${docUploadTitle}" uploaded and approved!`);
+        setDocUploadTitle('');
+        setDocUploadFile(null);
+        fetchAllData();
+      } else {
+        setError(res.error || 'Document upload failed.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error uploading document.');
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
+
+  // --- Teacher Approval Actions ---
+  const handleApproveTeacher = async (teacherId, teacherName) => {
+    setActionLoading(`teacher-${teacherId}`);
+    try {
+      const res = await api.approveTeacher(teacherId);
+      if (res.success) {
+        setMessage(`Approved ${teacherName}. They can now log in.`);
+        fetchAllData();
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleRejectTeacher = async (teacherId, teacherName) => {
+    setActionLoading(`teacher-${teacherId}`);
+    try {
+      const res = await api.rejectTeacher(teacherId);
+      if (res.success) {
+        setMessage(`Rejected teacher application for ${teacherName}.`);
+        fetchAllData();
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // --- Direct Announcement Posting ---
+  const handleDirectAnnounceSubmit = async (e) => {
+    e.preventDefault();
+    setPostingAnnounce(true);
+    setMessage(null);
+    setError(null);
+
+    try {
+      const res = await api.adminCreateAnnouncement(directAnnounce);
+      if (res.success) {
+        setMessage(`Official announcement "${directAnnounce.title}" published!`);
+        setDirectAnnounce({
+          title: '',
+          category: 'academic',
+          course: 'All',
+          event_date: '',
+          deadline: '',
+          registration_link: '',
+          description: '',
+        });
+        fetchAllData();
+      } else {
+        setError(res.error || 'Failed to post announcement.');
+      }
+    } catch (err) {
+      setError(err.message || 'Error posting announcement.');
+    } finally {
+      setPostingAnnounce(false);
     }
   };
 
@@ -108,7 +276,7 @@ export default function AdminDashboard() {
         </div>
 
         <button
-          onClick={fetchAdminData}
+          onClick={fetchAllData}
           disabled={loading}
           className="btn btn-secondary"
           style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
@@ -155,15 +323,17 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      {/* System Statistics Cards */}
+      {/* 5 Stats Cards */}
       <div className="grid-cards" style={{ marginBottom: '1.5rem', marginTop: 0 }}>
         <div className="card">
           <div className="card-header">
-            <div className="card-title">Enrolled Students</div>
-            <Users size={18} color="var(--primary-600)" />
+            <div className="card-title">Pending Submissions</div>
+            <FileUp size={18} color="#d97706" />
           </div>
-          <div className="card-value">{stats ? stats.students : 0}</div>
-          <div className="card-subtitle">Active student profiles in SQLite</div>
+          <div className="card-value" style={{ color: teacherSubmissions.length > 0 ? '#d97706' : 'var(--slate-900)' }}>
+            {teacherSubmissions.length}
+          </div>
+          <div className="card-subtitle">Teacher notices to review</div>
         </div>
 
         <div className="card">
@@ -171,120 +341,634 @@ export default function AdminDashboard() {
             <div className="card-title">Pending Teachers</div>
             <Clock size={18} color="#d97706" />
           </div>
-          <div className="card-value" style={{ color: (stats?.pending_teachers || 0) > 0 ? '#d97706' : 'var(--slate-900)' }}>
-            {stats ? stats.pending_teachers : 0}
+          <div className="card-value" style={{ color: pendingTeachers.length > 0 ? '#d97706' : 'var(--slate-900)' }}>
+            {pendingTeachers.length}
           </div>
-          <div className="card-subtitle">Awaiting your approval below</div>
+          <div className="card-subtitle">Faculty awaiting approval</div>
         </div>
 
         <div className="card">
           <div className="card-header">
-            <div className="card-title">Approved Faculty</div>
-            <CheckCircle2 size={18} color="var(--success)" />
-          </div>
-          <div className="card-value">{stats ? stats.approved_teachers : 0}</div>
-          <div className="card-subtitle">Verified in-charges with posting rights</div>
-        </div>
-
-        <div className="card">
-          <div className="card-header">
-            <div className="card-title">Approved Notices</div>
-            <FileText size={18} color="var(--primary-600)" />
+            <div className="card-title">Published Events</div>
+            <Calendar size={18} color="var(--primary-600)" />
           </div>
           <div className="card-value">{stats ? stats.published_announcements : 0}</div>
-          <div className="card-subtitle">Published announcements</div>
+          <div className="card-subtitle">Visible on student feed</div>
+        </div>
+
+        <div className="card">
+          <div className="card-header">
+            <div className="card-title">Official Documents</div>
+            <FileText size={18} color="var(--success)" />
+          </div>
+          <div className="card-value">{documents.length}</div>
+          <div className="card-subtitle">Uploaded college PDFs</div>
         </div>
       </div>
 
-      {/* Primary Phase 2 Feature: Teacher Approvals Queue */}
-      <div className="section-box">
-        <div className="section-header">
-          <div className="section-heading">
-            <Users size={20} color="var(--primary-600)" />
-            Faculty & In-Charge Account Approval Queue
+      {/* Admin Feature Tabs */}
+      <div className="tabs">
+        <button
+          className={`tab-btn ${activeTab === 'submissions' ? 'active' : ''}`}
+          onClick={() => setActiveTab('submissions')}
+        >
+          <FileUp size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
+          Teacher Submissions Review ({teacherSubmissions.length})
+        </button>
+
+        <button
+          className={`tab-btn ${activeTab === 'documents' ? 'active' : ''}`}
+          onClick={() => setActiveTab('documents')}
+        >
+          <FileText size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
+          College Documents Manager ({documents.length})
+        </button>
+
+        <button
+          className={`tab-btn ${activeTab === 'teachers' ? 'active' : ''}`}
+          onClick={() => setActiveTab('teachers')}
+        >
+          <Users size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
+          Teacher Approvals ({pendingTeachers.length})
+        </button>
+
+        <button
+          className={`tab-btn ${activeTab === 'direct_post' ? 'active' : ''}`}
+          onClick={() => setActiveTab('direct_post')}
+        >
+          <PlusCircle size={16} style={{ display: 'inline', marginRight: '6px', verticalAlign: '-2px' }} />
+          Direct Announcement Publisher
+        </button>
+      </div>
+
+      {/* TAB 1: Teacher Submissions Review Queue */}
+      {activeTab === 'submissions' && (
+        <div className="section-box" style={{ marginTop: 0 }}>
+          <div className="section-header">
+            <div className="section-heading">
+              <FileUp size={20} color="var(--primary-600)" />
+              Faculty Announcement & Notice Submissions
+            </div>
+            <span className="badge badge-warning">
+              {teacherSubmissions.length} Pending Approval
+            </span>
           </div>
-          <span className="badge badge-warning">
-            {pendingTeachers.length} Pending Review
-          </span>
+
+          <p style={{ color: 'var(--slate-600)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+            Review announcements submitted by faculty members. Approving a submission automatically publishes it to the student portal. Rejecting allows you to give feedback.
+          </p>
+
+          {teacherSubmissions.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '3rem 1.5rem', color: 'var(--slate-500)', background: 'var(--slate-50)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--slate-300)' }}>
+              <CheckCircle2 size={32} color="var(--success)" style={{ margin: '0 auto 0.75rem' }} />
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--slate-800)', marginBottom: '0.25rem' }}>
+                No Pending Submissions
+              </h3>
+              <p style={{ fontSize: '0.85rem' }}>
+                All teacher submissions have been reviewed. When teachers submit new notices, they will appear here.
+              </p>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {teacherSubmissions.map((sub) => (
+                <div
+                  key={sub.id}
+                  style={{
+                    border: '1px solid var(--slate-200)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1.5rem',
+                    background: 'white',
+                    boxShadow: 'var(--shadow-sm)'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '0.75rem' }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                        <span className="badge badge-info" style={{ textTransform: 'uppercase', fontSize: '0.75rem' }}>
+                          {sub.category}
+                        </span>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
+                          Target: <strong>{sub.course}</strong>
+                        </span>
+                      </div>
+                      <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+                        {sub.title}
+                      </h3>
+                      <div style={{ fontSize: '0.85rem', color: 'var(--slate-600)', marginTop: '0.2rem' }}>
+                        Submitted by: <strong>{sub.teacher_name}</strong> ({sub.teacher_department}) &bull; <code>{sub.teacher_email}</code>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <button
+                        onClick={() => handleApproveSubmission(sub.id, sub.title)}
+                        disabled={actionLoading === `sub-${sub.id}`}
+                        className="btn btn-primary"
+                        style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', background: 'var(--success)' }}
+                      >
+                        <CheckCircle2 size={15} />
+                        {actionLoading === `sub-${sub.id}` ? 'Publishing...' : 'Approve & Publish'}
+                      </button>
+                      <button
+                        onClick={() => handleOpenRejectModal(sub)}
+                        disabled={actionLoading === `sub-${sub.id}`}
+                        className="btn btn-secondary"
+                        style={{ padding: '0.45rem 1rem', fontSize: '0.85rem', color: '#dc2626', borderColor: '#fca5a5' }}
+                      >
+                        <XCircle size={15} />
+                        Reject with Feedback
+                      </button>
+                    </div>
+                  </div>
+
+                  <p style={{ color: 'var(--slate-700)', fontSize: '0.9rem', lineHeight: 1.6, background: 'var(--slate-50)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', marginBottom: '0.75rem' }}>
+                    {sub.description}
+                  </p>
+
+                  <div style={{ display: 'flex', gap: '1.25rem', fontSize: '0.85rem', color: 'var(--slate-600)', flexWrap: 'wrap' }}>
+                    {sub.event_date && <span>Event Date: <strong>{sub.event_date}</strong></span>}
+                    {sub.deadline && <span style={{ color: '#b45309' }}>Deadline: <strong>{sub.deadline}</strong></span>}
+                    {sub.registration_link && (
+                      <a href={sub.registration_link} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary-600)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        Registration Link <ExternalLink size={12} />
+                      </a>
+                    )}
+                    {sub.document_path && (
+                      <span style={{ color: 'var(--primary-700)', fontWeight: 600 }}>
+                        Official Notice PDF Attached
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+      )}
 
-        <p style={{ color: 'var(--slate-600)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
-          All new teacher accounts must be reviewed and approved by an administrator before they are permitted to log in or publish college notices.
-        </p>
+      {/* TAB 2: Official College Documents Manager */}
+      {activeTab === 'documents' && (
+        <div>
+          {/* Direct PDF Upload Form */}
+          <div className="section-box" style={{ marginTop: 0, marginBottom: '1.5rem' }}>
+            <div className="section-header">
+              <div className="section-heading">
+                <Upload size={20} color="var(--primary-600)" />
+                Direct Official College PDF Upload
+              </div>
+              <span className="badge badge-info">Administrator Only</span>
+            </div>
 
-        {pendingTeachers.length === 0 ? (
-          <div style={{
-            background: 'var(--slate-50)',
-            border: '1px dashed var(--slate-300)',
-            borderRadius: 'var(--radius-md)',
-            padding: '2.5rem',
-            textAlign: 'center',
-            color: 'var(--slate-500)'
-          }}>
-            <CheckCircle2 size={32} color="var(--success)" style={{ margin: '0 auto 0.75rem' }} />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--slate-800)', marginBottom: '0.25rem' }}>
-              All Caught Up!
-            </h3>
-            <p style={{ fontSize: '0.85rem' }}>
-              There are no pending teacher registration requests at this time.
+            <p style={{ color: 'var(--slate-600)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+              Upload official university PDFs (academic calendar, rules, examination policies, syllabus). These documents are approved directly without requiring a teacher account. In Phase 5, they are indexed into the Gemini File Search knowledge store.
+            </p>
+
+            <form onSubmit={handleAdminDocUpload} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                  Document Title *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. University Examination Guidelines 2026"
+                  value={docUploadTitle}
+                  onChange={(e) => setDocUploadTitle(e.target.value)}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    border: '1px solid var(--slate-300)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.85rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                  Select PDF Document *
+                </label>
+                <input
+                  type="file"
+                  accept=".pdf,application/pdf"
+                  onChange={(e) => setDocUploadFile(e.target.files[0] || null)}
+                  required
+                  style={{ fontSize: '0.85rem' }}
+                />
+              </div>
+
+              <div>
+                <button
+                  type="submit"
+                  disabled={uploadingDoc}
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '0.65rem 1rem', fontSize: '0.85rem' }}
+                >
+                  <Upload size={14} />
+                  {uploadingDoc ? 'Uploading...' : 'Upload & Approve Document'}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          {/* Uploaded Documents Table */}
+          <div className="section-box" style={{ marginTop: 0 }}>
+            <div className="section-header">
+              <div className="section-heading">
+                <FileText size={20} color="var(--primary-600)" />
+                College Documents Repository ({documents.length})
+              </div>
+              <span className="badge badge-info">Approval & Indexing Status</span>
+            </div>
+
+            {documents.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--slate-500)' }}>
+                No college documents uploaded yet. Use the upload box above to add official PDFs.
+              </div>
+            ) : (
+              <div className="table-wrapper">
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>Document Title</th>
+                      <th>Original File</th>
+                      <th>Uploader</th>
+                      <th>Approval Status</th>
+                      <th>Gemini Indexing</th>
+                      <th>Uploaded At</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.map((doc) => (
+                      <tr key={doc.id}>
+                        <td>
+                          <strong style={{ color: 'var(--slate-900)' }}>{doc.title}</strong>
+                        </td>
+                        <td>
+                          <code style={{ fontSize: '0.8rem', color: 'var(--slate-600)' }}>{doc.original_filename}</code>
+                        </td>
+                        <td>
+                          <span className="badge badge-secondary" style={{ textTransform: 'capitalize' }}>
+                            {doc.uploader_role}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge ${doc.approval_status === 'approved' ? 'badge-success' : doc.approval_status === 'rejected' ? 'badge-error' : 'badge-warning'}`}>
+                            {doc.approval_status === 'approved' && <CheckCircle2 size={12} />}
+                            {doc.approval_status === 'rejected' && <XCircle size={12} />}
+                            {doc.approval_status === 'pending' && <Clock size={12} />}
+                            {doc.approval_status}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={`badge ${doc.indexing_status === 'indexed' ? 'badge-success' : 'badge-warning'}`}>
+                            {doc.indexing_status === 'indexed' ? 'Indexed (Chatbot Ready)' : 'Not Indexed (Phase 5)'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
+                          {doc.created_at || 'Recently'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: Teacher Approvals (from Phase 2) */}
+      {activeTab === 'teachers' && (
+        <div className="section-box" style={{ marginTop: 0 }}>
+          <div className="section-header">
+            <div className="section-heading">
+              <Users size={20} color="var(--primary-600)" />
+              Faculty Registration Approval Queue
+            </div>
+            <span className="badge badge-warning">
+              {pendingTeachers.length} Pending
+            </span>
+          </div>
+
+          {pendingTeachers.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '2.5rem', color: 'var(--slate-500)' }}>
+              <CheckCircle2 size={32} color="var(--success)" style={{ margin: '0 auto 0.75rem' }} />
+              <div style={{ fontWeight: 700, color: 'var(--slate-800)' }}>All Caught Up!</div>
+              <div style={{ fontSize: '0.85rem' }}>No pending teacher applications.</div>
+            </div>
+          ) : (
+            <div className="table-wrapper">
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Faculty Name</th>
+                    <th>Official Email</th>
+                    <th>Department</th>
+                    <th>Registered At</th>
+                    <th style={{ textAlign: 'right' }}>Admin Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingTeachers.map((t) => (
+                    <tr key={t.id}>
+                      <td><strong>{t.name}</strong></td>
+                      <td><code>{t.email}</code></td>
+                      <td><span className="badge badge-info">{t.department}</span></td>
+                      <td style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>{t.created_at}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={() => handleApproveTeacher(t.id, t.name)}
+                            disabled={actionLoading === `teacher-${t.id}`}
+                            className="btn btn-primary"
+                            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', background: 'var(--success)' }}
+                          >
+                            <CheckCircle2 size={13} /> Approve
+                          </button>
+                          <button
+                            onClick={() => handleRejectTeacher(t.id, t.name)}
+                            disabled={actionLoading === `teacher-${t.id}`}
+                            className="btn btn-secondary"
+                            style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#fca5a5' }}
+                          >
+                            <XCircle size={13} /> Reject
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 4: Direct Announcement Publisher */}
+      {activeTab === 'direct_post' && (
+        <div className="card" style={{ padding: '2rem' }}>
+          <div style={{ marginBottom: '1.5rem', borderBottom: '1px solid var(--slate-100)', paddingBottom: '1rem' }}>
+            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+              Publish Official Announcement as Administrator
+            </h2>
+            <p style={{ color: 'var(--slate-500)', fontSize: '0.85rem', marginTop: '0.25rem' }}>
+              Official administrative notices are published immediately to the student feed.
             </p>
           </div>
-        ) : (
-          <div className="table-wrapper">
-            <table className="custom-table">
-              <thead>
-                <tr>
-                  <th>Faculty Name</th>
-                  <th>Official Email</th>
-                  <th>Department</th>
-                  <th>Registered At</th>
-                  <th style={{ textAlign: 'right' }}>Admin Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingTeachers.map((teacher) => (
-                  <tr key={teacher.id}>
-                    <td>
-                      <div style={{ fontWeight: 700, color: 'var(--slate-900)' }}>{teacher.name}</div>
-                    </td>
-                    <td>
-                      <code style={{ fontSize: '0.8rem', color: 'var(--slate-600)' }}>{teacher.email}</code>
-                    </td>
-                    <td>
-                      <span className="badge badge-info">{teacher.department}</span>
-                    </td>
-                    <td style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
-                      {teacher.created_at || 'Recently'}
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'inline-flex', gap: '0.5rem' }}>
-                        <button
-                          onClick={() => handleApprove(teacher.id, teacher.name)}
-                          disabled={actionLoading === teacher.id}
-                          className="btn btn-primary"
-                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', background: 'var(--success)' }}
-                        >
-                          <CheckCircle2 size={14} />
-                          {actionLoading === teacher.id ? 'Processing...' : 'Approve'}
-                        </button>
-                        <button
-                          onClick={() => handleReject(teacher.id, teacher.name)}
-                          disabled={actionLoading === teacher.id}
-                          className="btn btn-secondary"
-                          style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', color: '#dc2626', borderColor: '#fca5a5' }}
-                        >
-                          <XCircle size={14} />
-                          Reject
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+
+          <form onSubmit={handleDirectAnnounceSubmit}>
+            <div style={{ marginBottom: '1.25rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                Announcement Title *
+              </label>
+              <input
+                type="text"
+                placeholder="e.g. End-Semester Examination Schedule Announced"
+                value={directAnnounce.title}
+                onChange={(e) => setDirectAnnounce({ ...directAnnounce, title: e.target.value })}
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.65rem 0.85rem',
+                  border: '1px solid var(--slate-300)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.9rem',
+                  fontFamily: 'inherit'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                  Category *
+                </label>
+                <select
+                  value={directAnnounce.category}
+                  onChange={(e) => setDirectAnnounce({ ...directAnnounce, category: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    border: '1px solid var(--slate-300)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.9rem',
+                    fontFamily: 'inherit',
+                    background: 'white'
+                  }}
+                >
+                  {CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.id}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                  Target Academic Course
+                </label>
+                <select
+                  value={directAnnounce.course}
+                  onChange={(e) => setDirectAnnounce({ ...directAnnounce, course: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    border: '1px solid var(--slate-300)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.9rem',
+                    fontFamily: 'inherit',
+                    background: 'white'
+                  }}
+                >
+                  {COURSES.map((c) => (
+                    <option key={c} value={c}>{c === 'All' ? 'All College Courses' : c}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                  Event Date (optional)
+                </label>
+                <input
+                  type="date"
+                  value={directAnnounce.event_date}
+                  onChange={(e) => setDirectAnnounce({ ...directAnnounce, event_date: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    border: '1px solid var(--slate-300)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.9rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                  Deadline (optional)
+                </label>
+                <input
+                  type="date"
+                  value={directAnnounce.deadline}
+                  onChange={(e) => setDirectAnnounce({ ...directAnnounce, deadline: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    border: '1px solid var(--slate-300)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.9rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                  Registration Link (optional)
+                </label>
+                <input
+                  type="url"
+                  placeholder="https://..."
+                  value={directAnnounce.registration_link}
+                  onChange={(e) => setDirectAnnounce({ ...directAnnounce, registration_link: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.65rem 0.85rem',
+                    border: '1px solid var(--slate-300)',
+                    borderRadius: 'var(--radius-md)',
+                    fontSize: '0.9rem',
+                    fontFamily: 'inherit'
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                Full Description & Details *
+              </label>
+              <textarea
+                rows={4}
+                value={directAnnounce.description}
+                onChange={(e) => setDirectAnnounce({ ...directAnnounce, description: e.target.value })}
+                placeholder="Official notice instructions, examination rules, or event circular..."
+                required
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '1px solid var(--slate-300)',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: '0.9rem',
+                  fontFamily: 'inherit',
+                  resize: 'vertical'
+                }}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={postingAnnounce}
+              className="btn btn-primary"
+              style={{ padding: '0.75rem 1.5rem', fontSize: '0.95rem' }}
+            >
+              {postingAnnounce ? 'Publishing...' : 'Publish Official Announcement Now'}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Reject Submission Feedback Modal */}
+      {rejectModalSubmission && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+          zIndex: 100,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '520px', padding: '1.75rem', position: 'relative' }}>
+            <button
+              onClick={() => setRejectModalSubmission(null)}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'var(--slate-100)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={16} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#dc2626', marginBottom: '0.75rem' }}>
+              <XCircle size={22} />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Reject Submission & Provide Feedback</h3>
+            </div>
+
+            <p style={{ fontSize: '0.875rem', color: 'var(--slate-600)', marginBottom: '1rem' }}>
+              Provide constructive feedback to <strong>{rejectModalSubmission.teacher_name}</strong> for:
+              <br />
+              <em>"{rejectModalSubmission.title}"</em>.
+              This feedback will appear in their dashboard so they can revise and resubmit.
+            </p>
+
+            <textarea
+              rows={4}
+              value={feedbackText}
+              onChange={(e) => setFeedbackText(e.target.value)}
+              placeholder="Explain what needs to be changed (e.g. Please add the venue, correct the registration date...)"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '1px solid var(--slate-300)',
+                borderRadius: 'var(--radius-md)',
+                fontSize: '0.85rem',
+                fontFamily: 'inherit',
+                marginBottom: '1.25rem',
+                resize: 'vertical'
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setRejectModalSubmission(null)}
+                className="btn btn-secondary"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmReject}
+                disabled={actionLoading === `sub-${rejectModalSubmission.id}`}
+                className="btn btn-primary"
+                style={{ background: '#dc2626' }}
+              >
+                {actionLoading === `sub-${rejectModalSubmission.id}` ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

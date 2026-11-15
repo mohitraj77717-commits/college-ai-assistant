@@ -13,6 +13,9 @@ from config import Config
 from database import init_db, check_database_status
 from routes.auth_routes import auth_bp
 from routes.admin_routes import admin_bp
+from routes.announcements_routes import announcements_bp
+from routes.teacher_routes import teacher_bp
+from routes.documents_routes import documents_bp
 
 def create_app():
     """
@@ -36,6 +39,9 @@ def create_app():
     # Register Blueprints
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(announcements_bp)
+    app.register_blueprint(teacher_bp)
+    app.register_blueprint(documents_bp)
 
     # Initialize SQLite database on startup
     with app.app_context():

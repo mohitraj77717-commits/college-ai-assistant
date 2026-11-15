@@ -27,7 +27,8 @@ wheels/
 # Flask & Secrets
 backend/.env
 backend/.env.local
-backend/college.db
+backend/*.db
+*.db
 backend/uploads/*
 !backend/uploads/.gitkeep
 

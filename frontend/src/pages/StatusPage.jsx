@@ -74,7 +74,7 @@ export default function StatusPage() {
         <div className="hero-content">
           <div className="hero-pill">
             <Terminal size={14} />
-            Phase 2 Authentication & RBAC Active
+            Phase 3 Core Features & Workflows Complete
           </div>
           <h1 className="hero-title">
             College Student Assistant Platform
@@ -461,7 +461,7 @@ export default function StatusPage() {
               <BookOpen size={20} color="var(--primary-600)" />
               Implementation Roadmap
             </div>
-            <span className="badge badge-success">Phase 2 Active</span>
+            <span className="badge badge-success">Phase 3 Complete</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -474,19 +474,19 @@ export default function StatusPage() {
             <RoadmapItem
               number={2}
               title="Phase 2 — Authentication & Role-Based Access Control"
-              status="active"
+              status="completed"
               desc="Student registration & login, Teacher registration with admin approval requirement, Admin secure bootstrap login, RBAC decorators & protected frontend routes."
             />
             <RoadmapItem
               number={3}
               title="Phase 3 — Core Workflows & Dashboards"
-              status="upcoming"
-              desc="Student personalized dashboard, Teacher announcement & PDF submission, Administrator direct PDF upload, Admin review & approval/rejection with feedback."
+              status="completed"
+              desc="Student events feed with course/category filtering, Teacher announcement & PDF submission with approval tracker, Administrator direct PDF upload, Admin review with constructive feedback."
             />
             <RoadmapItem
               number={4}
               title="Phase 4 — Announcements & Smart Notifications"
-              status="upcoming"
+              status="active"
               desc="Student interest & notification preference toggles, intelligent notification fanout on announcement approval, unread counts, mark-as-read."
             />
             <RoadmapItem
