@@ -14,7 +14,11 @@ import {
   FileText,
   User,
   Tag,
-  X
+  X,
+  Bell,
+  Sliders,
+  CheckCircle2,
+  BookOpen
 } from 'lucide-react';
 
 const CATEGORIES = [
@@ -27,6 +31,14 @@ const CATEGORIES = [
   { id: 'general', label: 'General' },
 ];
 
+const AVAILABLE_INTERESTS = [
+  'AI/ML',
+  'Coding',
+  'Robotics',
+  'Cultural Events',
+  'Technical Competitions',
+];
+
 export default function StudentDashboard() {
   const { user } = useAuth();
   const [announcements, setAnnouncements] = useState([]);
@@ -36,6 +48,14 @@ export default function StudentDashboard() {
   const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('all'); // 'all' or 'my_course'
   const [selectedAnnouncement, setSelectedAnnouncement] = useState(null);
+
+  // Preference Settings Modal State
+  const [isPrefModalOpen, setIsPrefModalOpen] = useState(false);
+  const [userInterests, setUserInterests] = useState(user?.interests || ['AI/ML', 'Coding']);
+  const [eventNotifsEnabled, setEventNotifsEnabled] = useState(true);
+  const [academicNotifsEnabled, setAcademicNotifsEnabled] = useState(true);
+  const [savingPrefs, setSavingPrefs] = useState(false);
+  const [prefSuccess, setPrefSuccess] = useState(false);
 
   const fetchAnnouncements = async () => {
     setLoading(true);
@@ -59,13 +79,62 @@ export default function StudentDashboard() {
     }
   };
 
+  const fetchStudentPreferences = async () => {
+    try {
+      const res = await api.getStudentPreferences();
+      if (res.success && res.data?.preferences) {
+        const p = res.data.preferences;
+        setUserInterests(p.interests || []);
+        setEventNotifsEnabled(p.event_notifications_enabled);
+        setAcademicNotifsEnabled(p.academic_notifications_enabled);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   useEffect(() => {
     fetchAnnouncements();
+    fetchStudentPreferences();
   }, [selectedCategory, courseFilter]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
     fetchAnnouncements();
+  };
+
+  const toggleInterest = (interest) => {
+    if (userInterests.includes(interest)) {
+      setUserInterests(userInterests.filter((i) => i !== interest));
+    } else {
+      setUserInterests([...userInterests, interest]);
+    }
+  };
+
+  const handleSavePreferences = async (e) => {
+    e.preventDefault();
+    setSavingPrefs(true);
+    setPrefSuccess(false);
+
+    try {
+      const res = await api.updateStudentPreferences({
+        interests: userInterests,
+        event_notifications_enabled: eventNotifsEnabled,
+        academic_notifications_enabled: academicNotifsEnabled,
+      });
+
+      if (res.success) {
+        setPrefSuccess(true);
+        setTimeout(() => {
+          setIsPrefModalOpen(false);
+          setPrefSuccess(false);
+        }, 1200);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingPrefs(false);
+    }
   };
 
   const getCategoryColor = (cat) => {
@@ -119,8 +188,8 @@ export default function StudentDashboard() {
               My Interests
             </div>
             <div style={{ display: 'flex', gap: '0.35rem', marginTop: '0.25rem', flexWrap: 'wrap' }}>
-              {user?.interests && user.interests.length > 0 ? (
-                user.interests.map((t) => (
+              {userInterests && userInterests.length > 0 ? (
+                userInterests.map((t) => (
                   <span key={t} style={{ background: 'rgba(255,255,255,0.2)', padding: '0.15rem 0.45rem', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: 600 }}>
                     {t}
                   </span>
@@ -130,6 +199,22 @@ export default function StudentDashboard() {
               )}
             </div>
           </div>
+
+          <button
+            type="button"
+            onClick={() => setIsPrefModalOpen(true)}
+            className="btn btn-secondary"
+            style={{
+              padding: '0.65rem 0.95rem',
+              fontSize: '0.8rem',
+              background: 'rgba(255,255,255,0.15)',
+              color: 'white',
+              border: '1px solid rgba(255,255,255,0.3)',
+              backdropFilter: 'blur(8px)'
+            }}
+          >
+            <Sliders size={14} /> Notification Settings
+          </button>
         </div>
       </div>
 
@@ -482,6 +567,168 @@ export default function StudentDashboard() {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Notification Preferences & Interests Modal */}
+      {isPrefModalOpen && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(15, 23, 42, 0.65)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+          zIndex: 100,
+          backdropFilter: 'blur(4px)'
+        }}>
+          <div className="card" style={{ width: '100%', maxWidth: '520px', padding: '1.75rem', position: 'relative' }}>
+            <button
+              onClick={() => setIsPrefModalOpen(false)}
+              style={{
+                position: 'absolute',
+                top: '1rem',
+                right: '1rem',
+                background: 'var(--slate-100)',
+                border: 'none',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <X size={16} />
+            </button>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
+              <div style={{ width: '36px', height: '36px', borderRadius: 'var(--radius-md)', background: 'var(--primary-50)', color: 'var(--primary-700)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <Sliders size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--slate-900)' }}>
+                  Notification & Interest Settings
+                </h3>
+                <p style={{ fontSize: '0.8rem', color: 'var(--slate-500)' }}>
+                  Customize which notifications you receive and what topics interest you
+                </p>
+              </div>
+            </div>
+
+            {prefSuccess && (
+              <div style={{ background: 'var(--success-bg)', border: '1px solid #bbf7d0', color: '#166534', padding: '0.65rem 1rem', borderRadius: 'var(--radius-md)', fontSize: '0.85rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle2 size={16} />
+                Preferences updated successfully!
+              </div>
+            )}
+
+            <form onSubmit={handleSavePreferences} style={{ marginTop: '1rem' }}>
+              {/* Delivery Toggles */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.5rem', background: 'var(--slate-50)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--slate-200)' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--slate-800)', marginBottom: '0.25rem' }}>
+                  Notification Delivery Channels:
+                </div>
+
+                {/* Event Toggle */}
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: '0.85rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Calendar size={16} color="var(--primary-600)" />
+                    <div>
+                      <div style={{ fontWeight: 600, color: 'var(--slate-800)' }}>Campus Events & Competitions</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--slate-500)' }}>Hackathons, cultural fests, workshops, coding sprints</div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={eventNotifsEnabled}
+                    onChange={(e) => setEventNotifsEnabled(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </label>
+
+                {/* Academic Toggle */}
+                <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', fontSize: '0.85rem', borderTop: '1px solid var(--slate-200)', paddingTop: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <BookOpen size={16} color="#b45309" />
+                    <div>
+                      <div style={{ fontWeight: 600, color: 'var(--slate-800)' }}>Academic & Exam Circulars</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--slate-500)' }}>Datesheets, syllabus updates, official administrative notices</div>
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={academicNotifsEnabled}
+                    onChange={(e) => setAcademicNotifsEnabled(e.target.checked)}
+                    style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                  />
+                </label>
+              </div>
+
+              {/* Interests Tags Manager */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.85rem', color: 'var(--slate-800)', marginBottom: '0.5rem' }}>
+                  <Sparkles size={15} color="var(--primary-600)" />
+                  Campus Topics of Interest:
+                </div>
+                <p style={{ fontSize: '0.8rem', color: 'var(--slate-500)', marginBottom: '0.75rem' }}>
+                  Click to add or remove tags. The notification engine uses these to send you relevant opportunities.
+                </p>
+
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.45rem' }}>
+                  {AVAILABLE_INTERESTS.map((interest) => {
+                    const isSelected = userInterests.includes(interest);
+                    return (
+                      <button
+                        key={interest}
+                        type="button"
+                        onClick={() => toggleInterest(interest)}
+                        style={{
+                          padding: '0.35rem 0.75rem',
+                          borderRadius: 'var(--radius-full)',
+                          border: `1px solid ${isSelected ? 'var(--primary-600)' : 'var(--slate-300)'}`,
+                          background: isSelected ? 'var(--primary-50)' : 'white',
+                          color: isSelected ? 'var(--primary-700)' : 'var(--slate-700)',
+                          fontSize: '0.8rem',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {isSelected && <CheckCircle2 size={13} color="var(--primary-600)" />}
+                        {interest}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid var(--slate-100)', paddingTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setIsPrefModalOpen(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingPrefs}
+                  className="btn btn-primary"
+                >
+                  {savingPrefs ? 'Saving...' : 'Save Preferences'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

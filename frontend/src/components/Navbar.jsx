@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { LogOut, User, Shield, GraduationCap, Briefcase, LayoutDashboard } from 'lucide-react';
+import NotificationBell from './NotificationBell';
 
 export default function Navbar() {
   const { user, isAuthenticated, logout } = useAuth();
@@ -81,6 +82,8 @@ export default function Navbar() {
                 <LayoutDashboard size={14} />
                 Dashboard
               </Link>
+
+              {user.role === 'student' && <NotificationBell />}
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--slate-100)', padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-full)' }}>
                 {getRoleBadge(user.role)}

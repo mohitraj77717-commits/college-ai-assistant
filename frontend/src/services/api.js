@@ -129,11 +129,7 @@ export const api = {
     request(`/api/admin/teachers/${teacherId}/reject`, { method: 'POST' }),
   getAdminStats: () => request('/api/admin/stats'),
 
-  // =================================================================
-  // Phase 3: Announcements, Submissions & Documents
-  // =================================================================
-
-  // Announcements Feed
+  // --- Phase 3: Announcements, Submissions & Documents ---
   getAnnouncements: (params = {}) => {
     const query = new URLSearchParams();
     if (params.course) query.append('course', params.course);
@@ -146,7 +142,6 @@ export const api = {
 
   getAnnouncement: (id) => request(`/api/announcements/${id}`),
 
-  // Teacher Notice & Announcement Submissions
   submitTeacherAnnouncement: (formData) =>
     request('/api/teacher/submit', {
       method: 'POST',
@@ -155,7 +150,6 @@ export const api = {
 
   getTeacherSubmissions: () => request('/api/teacher/my-submissions'),
 
-  // Admin Direct PDF Upload & Document Management
   adminUploadDocument: (formData) =>
     request('/api/documents/admin-upload', {
       method: 'POST',
@@ -166,7 +160,6 @@ export const api = {
   approveDocument: (docId) => request(`/api/documents/${docId}/approve`, { method: 'POST' }),
   rejectDocument: (docId) => request(`/api/documents/${docId}/reject`, { method: 'POST' }),
 
-  // Admin Submissions Review
   getTeacherSubmissionsAdmin: (status = 'pending') =>
     request(`/api/admin/submissions?status=${status}`),
 
@@ -179,6 +172,26 @@ export const api = {
   adminCreateAnnouncement: (payload) =>
     request('/api/admin/announcements/create', {
       method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+
+  // =================================================================
+  // Phase 4: Notifications & Student Preferences
+  // =================================================================
+
+  getNotifications: () => request('/api/notifications'),
+  getUnreadNotificationCount: () => request('/api/notifications/unread-count'),
+  markNotificationRead: (id) =>
+    request(`/api/notifications/${id}/read`, { method: 'PUT' }),
+  markAllNotificationsRead: () =>
+    request('/api/notifications/mark-all-read', { method: 'PUT' }),
+  dismissNotification: (id) =>
+    request(`/api/notifications/${id}`, { method: 'DELETE' }),
+
+  getStudentPreferences: () => request('/api/student/preferences'),
+  updateStudentPreferences: (payload) =>
+    request('/api/student/preferences', {
+      method: 'PUT',
       body: JSON.stringify(payload),
     }),
 };

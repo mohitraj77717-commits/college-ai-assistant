@@ -16,6 +16,8 @@ from routes.admin_routes import admin_bp
 from routes.announcements_routes import announcements_bp
 from routes.teacher_routes import teacher_bp
 from routes.documents_routes import documents_bp
+from routes.notifications_routes import notifications_bp
+from routes.student_routes import student_bp
 
 def create_app():
     """
@@ -42,6 +44,8 @@ def create_app():
     app.register_blueprint(announcements_bp)
     app.register_blueprint(teacher_bp)
     app.register_blueprint(documents_bp)
+    app.register_blueprint(notifications_bp)
+    app.register_blueprint(student_bp)
 
     # Initialize SQLite database on startup
     with app.app_context():

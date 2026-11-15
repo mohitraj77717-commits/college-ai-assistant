@@ -74,7 +74,7 @@ export default function StatusPage() {
         <div className="hero-content">
           <div className="hero-pill">
             <Terminal size={14} />
-            Phase 3 Core Features & Workflows Complete
+            Phase 4 Smart Notifications & Preferences Complete
           </div>
           <h1 className="hero-title">
             College Student Assistant Platform
@@ -461,7 +461,7 @@ export default function StatusPage() {
               <BookOpen size={20} color="var(--primary-600)" />
               Implementation Roadmap
             </div>
-            <span className="badge badge-success">Phase 3 Complete</span>
+            <span className="badge badge-success">Phase 4 Complete</span>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
@@ -486,13 +486,13 @@ export default function StatusPage() {
             <RoadmapItem
               number={4}
               title="Phase 4 — Announcements & Smart Notifications"
-              status="active"
+              status="completed"
               desc="Student interest & notification preference toggles, intelligent notification fanout on announcement approval, unread counts, mark-as-read."
             />
             <RoadmapItem
               number={5}
               title="Phase 5 — Gemini File Search & College Chatbot"
-              status="upcoming"
+              status="active"
               desc="Gemini File Search API store management, indexing of approved PDFs, chatbot query endpoint with source references, graceful fallback when facts are missing."
             />
             <RoadmapItem

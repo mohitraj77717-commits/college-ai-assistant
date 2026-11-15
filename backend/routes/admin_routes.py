@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from database import query_db, execute_db
 from auth import role_required
+from services.notification_service import fanout_announcement_notifications
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
@@ -192,11 +193,15 @@ def review_teacher_submission(submission_id: int):
                 (submission['document_path'],)
             )
 
+        # 4. Phase 4: Intelligently generate notifications for eligible students
+        notif_count = fanout_announcement_notifications(announcement_id)
+
         return jsonify({
             'status': 'success',
             'message': f"Submission '{submission['title']}' approved and published to announcements.",
             'submission_id': submission_id,
             'announcement_id': announcement_id,
+            'notifications_sent': notif_count,
             'action': 'approved'
         }), 200
 
@@ -258,10 +263,14 @@ def admin_create_announcement():
         (title, description, category, event_date, deadline, registration_link, course, admin_id)
     )
 
+    # Phase 4: Intelligently generate notifications for eligible students
+    notif_count = fanout_announcement_notifications(announcement_id)
+
     return jsonify({
         'status': 'success',
         'message': f"Official announcement '{title}' published successfully.",
-        'announcement_id': announcement_id
+        'announcement_id': announcement_id,
+        'notifications_sent': notif_count
     }), 201
 
 
