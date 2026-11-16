@@ -15,13 +15,66 @@ import {
 } from 'lucide-react';
 import api from '../services/api';
 
+/**
+ * Helper to render message text with clean bolding, bullet points, and headers.
+ */
+function renderFormattedMessage(text) {
+  if (!text) return '';
+  const lines = text.split('\n');
+
+  return lines.map((line, idx) => {
+    const trimmed = line.trim();
+
+    // Check if bullet point
+    const isBullet = trimmed.startsWith('* ') || trimmed.startsWith('- ') || trimmed.startsWith('• ');
+    let cleanLine = isBullet ? trimmed.replace(/^[\*\-•]\s*/, '') : line;
+
+    // Parse **bold** markdown tokens
+    const parts = cleanLine.split(/(\*\*.*?\*\*)/g);
+    const formattedParts = parts.map((part, pIdx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return <strong key={pIdx} style={{ fontWeight: 700, color: 'inherit' }}>{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+
+    if (isBullet) {
+      return (
+        <div key={idx} style={{ display: 'flex', gap: '0.45rem', marginTop: '0.2rem', marginBottom: '0.2rem', alignItems: 'flex-start' }}>
+          <span style={{ color: 'var(--primary-600)', fontWeight: 800, lineHeight: 1.4 }}>•</span>
+          <span style={{ flex: 1, lineHeight: 1.45 }}>{formattedParts}</span>
+        </div>
+      );
+    }
+
+    if (trimmed.startsWith('### ') || trimmed.startsWith('## ') || trimmed.startsWith('# ')) {
+      const heading = trimmed.replace(/^#+\s*/, '');
+      return (
+        <div key={idx} style={{ fontWeight: 800, fontSize: '0.925rem', marginTop: '0.65rem', marginBottom: '0.3rem', color: 'inherit', letterSpacing: '-0.01em' }}>
+          {heading}
+        </div>
+      );
+    }
+
+    if (trimmed === '---') {
+      return <hr key={idx} style={{ border: 'none', borderTop: '1px solid var(--slate-200)', margin: '0.5rem 0' }} />;
+    }
+
+    return (
+      <div key={idx} style={{ minHeight: trimmed === '' ? '0.4rem' : 'auto', lineHeight: 1.45 }}>
+        {formattedParts}
+      </div>
+    );
+  });
+}
+
 export default function CollegeChatbot({ inline = false, defaultOpen = false }) {
   const [isOpen, setIsOpen] = useState(defaultOpen || inline);
   const [messages, setMessages] = useState([
     {
       id: 'welcome',
       sender: 'bot',
-      text: "Hello! I am your College AI Assistant. Ask me anything about examination rules, academic calendars, hackathons, or campus policies based on official university circulars.",
+      text: "Hey there! 👋 I'm your Campus Buddy AI 🎓✨.\n\nAsk me anything about today's classes & notices, upcoming campus events like Bollywood Day 🎬, your semester syllabus, or exam guidelines!\n\nWhat's on your mind today? 😊",
       sources: [],
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
@@ -35,10 +88,10 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
   const inputRef = useRef(null);
 
   const suggestedPrompts = [
-    "What are the examination rules?",
-    "When is the AI Hackathon deadline?",
-    "What is the minimum attendance requirement?",
-    "Where can I find the official academic calendar?"
+    "📢 Today's classes & notices",
+    "🎬 Bollywood Day event details",
+    "📚 Syllabus for Maths",
+    "🎓 What are the exam guidelines?"
   ];
 
   // Fetch RAG system status on mount
@@ -247,8 +300,8 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
             <Sparkles size={16} />
           </div>
           <div>
-            <div style={{ fontWeight: 700, fontSize: '0.925rem', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-              Campus AI Assistant
+            <div style={{ fontWeight: 800, fontSize: '0.95rem', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              Campus Buddy AI 🎓✨
             </div>
             <div>{getStatusBadge()}</div>
           </div>
@@ -305,7 +358,7 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
       }}>
         <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
           <BookOpen size={12} color="var(--primary-600)" />
-          Grounded in Approved Circulars & Documents
+          Grounded in Live Notices & Official Circulars 📚
         </span>
         <button
           onClick={fetchStatus}
@@ -338,13 +391,13 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
           >
             <div
               style={{
-                maxWidth: '85%',
-                padding: '0.75rem 0.95rem',
+                maxWidth: '88%',
+                padding: '0.8rem 1rem',
                 borderRadius: msg.sender === 'user'
-                  ? '16px 16px 4px 16px'
-                  : '16px 16px 16px 4px',
+                  ? '18px 18px 4px 18px'
+                  : '18px 18px 18px 4px',
                 background: msg.sender === 'user'
-                  ? 'linear-gradient(135deg, var(--primary-600) 0%, var(--primary-700) 100%)'
+                  ? 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)'
                   : msg.isError
                     ? '#fef2f2'
                     : 'white',
@@ -353,31 +406,38 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
                   : msg.isError
                     ? '#991b1b'
                     : 'var(--slate-800)',
-                boxShadow: msg.sender === 'user' ? 'none' : '0 1px 3px rgba(0,0,0,0.06)',
-                border: msg.isError ? '1px solid #fecaca' : msg.sender === 'user' ? 'none' : '1px solid var(--slate-200)',
+                boxShadow: msg.sender === 'user'
+                  ? '0 2px 6px rgba(79, 70, 229, 0.25)'
+                  : '0 2px 6px rgba(0, 0, 0, 0.05)',
+                border: msg.isError
+                  ? '1px solid #fecaca'
+                  : msg.sender === 'user'
+                    ? 'none'
+                    : '1px solid #e0e7ff',
                 fontSize: '0.875rem',
-                lineHeight: 1.45,
+                lineHeight: 1.5,
                 wordBreak: 'break-word',
                 whiteSpace: 'pre-wrap'
               }}
             >
-              {msg.text}
+              {renderFormattedMessage(msg.text)}
             </div>
 
             {/* Document Citations / Sources */}
             {msg.sources && msg.sources.length > 0 && (
               <div style={{
                 marginTop: '0.35rem',
-                maxWidth: '85%',
+                maxWidth: '88%',
                 fontSize: '0.725rem',
                 background: 'white',
-                border: '1px solid var(--slate-200)',
+                border: '1px solid #e0e7ff',
                 borderRadius: 'var(--radius-md)',
-                padding: '0.4rem 0.65rem',
-                color: 'var(--slate-600)'
+                padding: '0.45rem 0.75rem',
+                color: 'var(--slate-600)',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
               }}>
-                <div style={{ fontWeight: 600, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--primary-700)' }}>
-                  <FileText size={11} /> Referenced College Document(s):
+                <div style={{ fontWeight: 700, marginBottom: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--primary-700)' }}>
+                  <FileText size={12} /> Referenced Sources:
                 </div>
                 {msg.sources.map((src, idx) => (
                   <div key={idx} style={{ color: 'var(--slate-700)', padding: '0.1rem 0' }}>
@@ -394,7 +454,7 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
         ))}
 
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', padding: '0.5rem', color: 'var(--slate-500)', fontSize: '0.8rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem', color: 'var(--primary-700)', fontSize: '0.825rem', fontWeight: 600 }}>
             <div style={{
               width: '8px',
               height: '8px',
@@ -402,7 +462,7 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
               background: 'var(--primary-600)',
               animation: 'ping 1s cubic-bezier(0, 0, 0.2, 1) infinite'
             }} />
-            Consulting approved college documents with Gemini...
+            Campus Buddy AI is checking circulars & events...
           </div>
         )}
 
