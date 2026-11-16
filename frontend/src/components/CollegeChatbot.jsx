@@ -84,22 +84,27 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
 
     try {
       const res = await api.askChatbot({ message: textToSend });
-      if (res.success && res.data) {
+      if (res.data && res.data.answer) {
         const botMessage = {
           id: (Date.now() + 1).toString(),
           sender: 'bot',
-          text: res.data.answer || "No response received.",
+          text: res.data.answer,
           sources: res.data.sources || [],
           mode: res.data.mode || 'standard',
           geminiConfigured: res.data.gemini_configured,
+          isError: res.data.status === 'error',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setMessages((prev) => [...prev, botMessage]);
       } else {
+        const fallbackText = res.error === 'Internal Server Error'
+          ? "The server took too long to respond or is restarting. Please ensure 'python app.py' is running in your backend terminal and try again in a few seconds."
+          : (res.error || "Sorry, I could not process your question at this moment. Please check your network connection.");
+
         const errorMessage = {
           id: (Date.now() + 1).toString(),
           sender: 'bot',
-          text: res.error || "Sorry, I could not process your question at this moment. Please check your network connection.",
+          text: fallbackText,
           sources: [],
           isError: true,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
