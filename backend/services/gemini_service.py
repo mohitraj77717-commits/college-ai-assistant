@@ -343,27 +343,74 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
             "• If Not Found: Say nicely: 'Oops! I couldn’t find info about that in our official circulars or event notices yet. 🏫 Best to check with your department coordinator or admin!'"
         )
 
-        # Try active production models (primary: gemini-3.5-flash, fallback: gemini-3.8-flash)
-        model_candidates = ["gemini-3.5-flash", "gemini-3.8-flash"]
+        # Smart Query Routing:
+        q_lower = clean_message.lower().strip()
+
+        # Check for simple greetings
+        greetings_list = [
+            'hi', 'hello', 'hey', 'heyy', 'hiya', 'sup', 'yo',
+            'good morning', 'good afternoon', 'good evening',
+            'who are you', 'what can you do', 'help', 'help me',
+            'thanks', 'thank you', 'bye', 'goodbye', 'ok', 'okay'
+        ]
+        is_greeting = q_lower in greetings_list or any(q_lower.startswith(g + ' ') for g in ['hi', 'hello', 'hey', 'yo'])
+
+        # Campus events & announcements
+        event_keywords = [
+            'announcement', 'announcements', 'event', 'events', 'notice', 'notices',
+            'today', 'todays', "today's", 'tomorrow', 'class', 'classes', 'stambh',
+            'bollywood', 'fest', 'workshop', 'workshops', 'hackathon', 'hackathons',
+            'cultural', 'schedule', 'register', 'registration', 'club', 'clubs',
+            'aaj', 'kal', 'kab', 'session', 'seminar'
+        ]
+        is_event_query = any(k in q_lower for k in event_keywords)
+
+        # Academic documents, syllabus, rules, exams
+        academic_keywords = [
+            'syllabus', 'syallbus', 'syllubus', 'subject', 'course', 'curriculum',
+            'unit', 'units', 'chapter', 'chapters', 'credit', 'credits', 'math', 'maths',
+            'mathematics', 'physics', 'chemistry', 'exam', 'exams', 'examination',
+            'marks', 'grading', 'grade', 'passed', 'passing', 'attendance', 'policy',
+            'rules', 'rule', 'regulation', 'regulations', 'circular', 'circulars',
+            'document', 'documents', 'pdf', 'file', 'sem', 'semester', 'module',
+            'modules', 'lab', 'practical', 'fee', 'fees', 'curricula', 'ordinance',
+            'prerequisite', 'ai & ml', 'cse'
+        ]
+        is_academic_query = any(k in q_lower for k in academic_keywords)
+
+        # Decide whether to attach FileSearch tool:
+        # If it's a greeting or asking about announcements/events and NOT an academic query,
+        # skip FileSearch for instant response (< 1s) from the prompt context.
+        use_file_search = is_academic_query or (not is_greeting and not is_event_query)
+
+        tools = None
+        if use_file_search and store_name:
+            tools = [
+                types.Tool(
+                    file_search=types.FileSearch(
+                        file_search_store_names=[store_name]
+                    )
+                )
+            ]
+
+        # Prioritize ultra-fast flash-lite models to avoid busy queue delays
+        model_candidates = ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash", "gemini-3.8-flash"]
         response = None
         last_error = None
 
         for model_name in model_candidates:
             try:
+                gen_config = types.GenerateContentConfig(
+                    system_instruction=system_instruction,
+                    temperature=0.2
+                )
+                if tools:
+                    gen_config.tools = tools
+
                 response = client.models.generate_content(
                     model=model_name,
                     contents=clean_message,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_instruction,
-                        temperature=0.2,  # Low temperature for factual consistency
-                        tools=[
-                            types.Tool(
-                                file_search=types.FileSearch(
-                                    file_search_store_names=[store_name]
-                                )
-                            )
-                        ]
-                    )
+                    config=gen_config
                 )
                 if response:
                     break
@@ -379,12 +426,18 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
 
         # Extract source references
         sources = []
-        # Add titles of indexed documents as active knowledge sources
-        for doc in indexed_docs:
+        if use_file_search:
+            for doc in indexed_docs:
+                sources.append({
+                    'id': doc['id'],
+                    'title': doc['title'],
+                    'filename': doc['original_filename']
+                })
+        elif is_event_query and announcements:
             sources.append({
-                'id': doc['id'],
-                'title': doc['title'],
-                'filename': doc['original_filename']
+                'id': 'live-feed',
+                'title': 'Live Campus Announcements & Events',
+                'filename': 'Campus DB Feed'
             })
 
         return {

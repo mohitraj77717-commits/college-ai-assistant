@@ -44,7 +44,7 @@ def ask_chatbot():
                 'sources': [],
                 'gemini_configured': is_gemini_available(),
                 'ready': False
-            }), 200
+            }), 400
 
         user_role = request.current_user.get('role', 'student') if hasattr(request, 'current_user') else 'student'
         result = query_college_chatbot(message=message, user_role=user_role)
