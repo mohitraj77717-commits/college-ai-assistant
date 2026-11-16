@@ -48,5 +48,9 @@ def ask_chatbot():
     user_role = request.current_user.get('role', 'student')
     result = query_college_chatbot(message=message, user_role=user_role)
 
-    status_code = 200 if result.get('status') == 'success' else 400
-    return jsonify(result), status_code
+    # Ensure message is populated for error readers
+    if result.get('status') != 'success' and 'message' not in result:
+        result['message'] = result.get('answer', 'Chatbot query failed.')
+
+    # Return 200 so the chatbot UI displays the friendly AI response in the conversation bubble
+    return jsonify(result), 200

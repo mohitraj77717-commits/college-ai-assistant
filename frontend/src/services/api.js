@@ -48,9 +48,9 @@ async function request(endpoint, options = {}) {
       return {
         success: false,
         status: response.status,
-        error: (data && data.message) || (data && data.error) || response.statusText,
+        error: (data && data.answer) || (data && data.message) || (data && data.error) || response.statusText,
         errorType: data && data.error,
-        data: null,
+        data: data || null,
       };
     }
 
