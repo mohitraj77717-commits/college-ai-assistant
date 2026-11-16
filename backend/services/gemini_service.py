@@ -302,17 +302,43 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
                 'mode': 'error'
             }
 
+        # Fetch active published announcements from SQLite to ground event queries
+        announcements = query_db(
+            """
+            SELECT id, title, description, category, event_date, deadline, registration_link, course
+            FROM announcements
+            WHERE status = 'published'
+            ORDER BY created_at DESC
+            LIMIT 15
+            """
+        ) or []
+
+        announcements_context = ""
+        if announcements:
+            announcements_context = "\nCURRENT PUBLISHED CAMPUS ANNOUNCEMENTS & EVENTS (LIVE SYSTEM FEED):\n"
+            for a in announcements:
+                announcements_context += (
+                    f"- Title: {a['title']}\n"
+                    f"  Category: {a['category']}\n"
+                    f"  Course: {a['course']}\n"
+                    f"  Event Date: {a['event_date'] or 'Not specified'}\n"
+                    f"  Deadline: {a['deadline'] or 'None'}\n"
+                    f"  Registration Link: {a['registration_link'] or 'None'}\n"
+                    f"  Details: {a['description']}\n\n"
+                )
+
         system_instruction = (
             "You are the official College Student Assistant AI for a university campus. "
-            "Your role is to answer questions from students and faculty strictly using the facts "
-            "and information provided in the approved college circulars, notices, and documents. "
-            "\n\n"
-            "STRICT RULES FOR YOUR RESPONSES:\n"
-            "1. Only state facts directly supported by the uploaded college documents.\n"
-            "2. If the user's question cannot be answered using the provided documents, state clearly: "
-            "'I could not find information about that in the approved college documents. Please consult your department coordinator or administrator.'\n"
-            "3. Never guess, assume, or fabricate dates, deadlines, policies, eligibility, or faculty names.\n"
-            "4. Always mention the document title or circular name when providing information from it.\n"
+            "Your role is to answer questions from students and faculty using TWO official sources of knowledge:\n"
+            "1. LIVE PUBLISHED CAMPUS ANNOUNCEMENTS & EVENTS (provided in context below).\n"
+            "2. APPROVED COLLEGE DOCUMENTS & CIRCULARS (retrieved via the File Search tool).\n\n"
+            f"{announcements_context}\n"
+            "RULES FOR YOUR RESPONSES:\n"
+            "1. If the user asks about today's announcements, upcoming events, club activities, class schedules, or campus notices, answer using the published announcements feed above.\n"
+            "2. If the user asks about course syllabus, academic subjects, examination rules, or official guidelines, answer using the File Search tool.\n"
+            "3. If information cannot be found in either the announcements or the documents, state clearly: "
+            "'I could not find information about that in the approved college announcements or documents. Please consult your department coordinator or administrator.'\n"
+            "4. Never fabricate or guess dates, policies, or faculty names.\n"
             "5. Keep responses concise, well-structured, professional, and friendly."
         )
 
