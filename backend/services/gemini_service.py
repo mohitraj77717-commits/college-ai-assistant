@@ -384,7 +384,7 @@ LIVE REAL-TIME SYSTEM CLOCK & CALENDAR:
         else:
             announcements_context += "No past announcements in archive.\n\n"
 
-        # Smart Query Routing:
+        # Smart Query Routing Setup:
         q_lower = clean_message.lower().strip()
 
         # Check for simple greetings
@@ -427,6 +427,83 @@ LIVE REAL-TIME SYSTEM CLOCK & CALENDAR:
             'lecture', 'lectures'
         ]
         is_timetable_query = any(k in q_lower for k in timetable_keywords)
+
+        # Fast Handler 1: Real-time Date and Clock (Instant < 0.001s)
+        if is_time_query:
+            return {
+                'status': 'success',
+                'answer': (
+                    f"Hey there! 🎓✨ Just checked my live campus clock for you! 🕒\n\n"
+                    f"📅 **Current Date:** {current_date_str} (Year {current_year})\n"
+                    f"⏰ **Current Time:** {current_time_str}\n"
+                    f"🗓️ **Day of Week:** {current_day_name}\n\n"
+                    "Let me know if you need help with your class routine or campus updates! 🚀📚"
+                ),
+                'sources': [],
+                'gemini_configured': True,
+                'ready': True,
+                'mode': 'fast_clock'
+            }
+
+        # Fast Handler 2: Verified Timetable & Routine (Instant < 0.01s)
+        from services.timetable_service import get_fast_timetable_answer
+        fast_tt = get_fast_timetable_answer(clean_message)
+        if fast_tt:
+            return fast_tt
+
+        # Fast Handler 3: Campus Announcements & Archives (Instant < 0.02s)
+        if any(p in q_lower for p in ['past announcement', 'past announcements', 'previous announcement', 'previous notices', 'past event', 'past events', 'archive', 'old notices', 'old events']):
+            if past_announcements:
+                body = "Hey there! 🎓✨ Here are the concluded & past announcements from our campus notice board:\n\n"
+                for a in past_announcements:
+                    body += f"📜 **{a['title']}**\n- **Category:** {a['category']}\n- **Date:** {a['event_date'] or 'Concluded'}\n- **Details:** {a['description']}\n\n"
+                body += "Let me know if you need info about current updates or class routines! 🚀"
+            else:
+                body = "Hey there! 🎓✨ There are currently no past announcements recorded in the archive."
+            return {
+                'status': 'success',
+                'answer': body,
+                'sources': [{'id': 'announcements-db', 'title': 'Campus Announcements Archive', 'filename': 'Campus DB'}],
+                'gemini_configured': True,
+                'ready': True,
+                'mode': 'fast_announcements'
+            }
+
+        if any(c in q_lower for c in ['current announcement', 'current announcements', 'latest announcement', 'latest announcements', 'upcoming event', 'upcoming events', 'new notice', 'active notice']) or (q_lower in ['announcements', 'announcement', 'notices', 'events', 'notice']):
+            if current_announcements:
+                body = "Hey there! 🎓✨ Here are the active & upcoming campus announcements right now:\n\n"
+                for a in current_announcements:
+                    body += f"📢 **{a['title']}**\n- **Category:** {a['category']}\n- **Event Date:** {a['event_date'] or 'Active'}\n- **Details:** {a['description']}\n\n"
+                body += "*(Past events like Bollywood Day are preserved in the archive. Ask anytime to see past notices!)*"
+            else:
+                body = "Hey there! 🎓✨ There are no new announcements on the notice board right now. Everything is quiet on the events front today! 😊\n\n*(You can also ask to see the past announcements archive!)*"
+            return {
+                'status': 'success',
+                'answer': body,
+                'sources': [{'id': 'announcements-db', 'title': 'Live Campus Announcements', 'filename': 'Campus DB'}],
+                'gemini_configured': True,
+                'ready': True,
+                'mode': 'fast_announcements'
+            }
+
+        # Fast Handler 4: Simple Friendly Greetings (Instant < 0.001s)
+        if is_greeting and len(clean_message.split()) <= 3:
+            return {
+                'status': 'success',
+                'answer': (
+                    "Hey there, classmate! 👋🎓✨\n\n"
+                    "I'm your **Campus Buddy AI**! You can ask me anything about:\n"
+                    "• 📅 **Today's classes & routine** (Section G)\n"
+                    "• 📢 **Campus announcements & events**\n"
+                    "• 📚 **First-semester syllabus & subject units**\n"
+                    "• 🕒 **Current date & time**\n\n"
+                    "What would you like to check right now? 😊"
+                ),
+                'sources': [],
+                'gemini_configured': True,
+                'ready': True,
+                'mode': 'fast_greeting'
+            }
 
         # Academic documents, syllabus, rules, exams
         academic_keywords = [
