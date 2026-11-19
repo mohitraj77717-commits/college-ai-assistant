@@ -88,10 +88,12 @@ export default function CollegeChatbot({ inline = false, defaultOpen = false }) 
   const inputRef = useRef(null);
 
   const suggestedPrompts = [
-    "📢 Today's classes & notices",
+    "📢 Current Announcements",
+    "📅 Today's Class Schedule",
+    "📜 Past Announcements Archive",
+    "🕒 What is today's date & time?",
     "🎬 Bollywood Day event details",
-    "📚 Syllabus for Maths",
-    "🎓 What are the exam guidelines?"
+    "📚 Syllabus for Maths"
   ];
 
   // Fetch RAG system status on mount

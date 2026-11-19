@@ -302,30 +302,87 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
                 'mode': 'error'
             }
 
-        # Fetch active published announcements from SQLite to ground event queries
+        # Real-time clock and date integration
+        from datetime import datetime
+        now = datetime.now()
+        current_time_str = now.strftime('%I:%M %p')
+        current_date_str = now.strftime('%A, %d %B %Y')
+        current_iso_date = now.strftime('%Y-%m-%d')
+        current_day_name = now.strftime('%A')
+        current_year = now.strftime('%Y')
+
+        # Fetch active published announcements from SQLite
         announcements = query_db(
             """
-            SELECT id, title, description, category, event_date, deadline, registration_link, course
+            SELECT id, title, description, category, event_date, deadline, registration_link, course, created_at
             FROM announcements
             WHERE status = 'published'
             ORDER BY created_at DESC
-            LIMIT 15
             """
         ) or []
 
-        announcements_context = ""
-        if announcements:
-            announcements_context = "\nCURRENT PUBLISHED CAMPUS ANNOUNCEMENTS & EVENTS (LIVE SYSTEM FEED):\n"
-            for a in announcements:
+        # Segregate into Current/Upcoming (High Priority) vs Past/Archive
+        current_announcements = []
+        past_announcements = []
+
+        for a in announcements:
+            ev_date = (a.get('event_date') or '').strip()
+            deadline = (a.get('deadline') or '').strip()
+            is_past = False
+
+            if ev_date:
+                try:
+                    if len(ev_date) >= 10 and ev_date[:10] < current_iso_date:
+                        is_past = True
+                except Exception:
+                    pass
+            elif deadline:
+                try:
+                    if len(deadline) >= 10 and deadline[:10] < current_iso_date:
+                        is_past = True
+                except Exception:
+                    pass
+
+            if is_past:
+                past_announcements.append(a)
+            else:
+                current_announcements.append(a)
+
+        announcements_context = f"""
+LIVE REAL-TIME SYSTEM CLOCK & CALENDAR:
+• Current Date & Year: {current_date_str} (Year: {current_year})
+• Current Day of Week: {current_day_name}
+• Current Local Time: {current_time_str}
+• Reference Date (ISO): {current_iso_date}
+
+📢 CURRENT & UPCOMING ANNOUNCEMENTS (HIGH PRIORITY - SHOW FIRST):
+"""
+        if current_announcements:
+            for a in current_announcements:
                 announcements_context += (
-                    f"- Title: {a['title']}\n"
+                    f"- [CURRENT] Title: {a['title']}\n"
                     f"  Category: {a['category']}\n"
                     f"  Course: {a['course']}\n"
-                    f"  Event Date: {a['event_date'] or 'Not specified'}\n"
+                    f"  Event Date: {a['event_date'] or 'Active / Ongoing Notice'}\n"
                     f"  Deadline: {a['deadline'] or 'None'}\n"
                     f"  Registration Link: {a['registration_link'] or 'None'}\n"
                     f"  Details: {a['description']}\n\n"
                 )
+        else:
+            announcements_context += "No new active announcements scheduled right now.\n\n"
+
+        announcements_context += "📜 PAST & ARCHIVED ANNOUNCEMENTS (CONCLUDED / PREVIOUS NOTICES):\n"
+        if past_announcements:
+            for a in past_announcements:
+                announcements_context += (
+                    f"- [PAST] Title: {a['title']}\n"
+                    f"  Category: {a['category']}\n"
+                    f"  Course: {a['course']}\n"
+                    f"  Date Held: {a['event_date'] or 'Concluded'}\n"
+                    f"  Details: {a['description']}\n\n"
+                )
+        else:
+            announcements_context += "No past announcements in archive.\n\n"
 
         # Smart Query Routing:
         q_lower = clean_message.lower().strip()
@@ -339,21 +396,35 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
         ]
         is_greeting = q_lower in greetings_list or any(q_lower.startswith(g + ' ') for g in ['hi', 'hello', 'hey', 'yo'])
 
+        # Real-time / Clock queries
+        time_keywords = [
+            'what is the time', 'what time', 'current time', 'what is the date',
+            'today date', "today's date", 'what day is today', 'what day is it',
+            'current date', 'kya time', 'kya date', 'what year', 'current year',
+            'time and date', 'date and time', 'time now'
+        ]
+        is_time_query = any(k in q_lower for k in time_keywords)
+
         # Campus events & announcements
         event_keywords = [
             'announcement', 'announcements', 'event', 'events', 'notice', 'notices',
             'today', 'todays', "today's", 'tomorrow', 'class', 'classes', 'stambh',
             'bollywood', 'fest', 'workshop', 'workshops', 'hackathon', 'hackathons',
             'cultural', 'register', 'registration', 'club', 'clubs',
-            'aaj', 'kal', 'kab', 'session', 'seminar'
+            'aaj', 'kal', 'kab', 'session', 'seminar',
+            'past announcement', 'past announcements', 'previous announcement',
+            'previous notices', 'past event', 'past events', 'archive', 'history'
         ]
-        is_event_query = any(k in q_lower for k in event_keywords)
+        is_event_query = any(k in q_lower for k in event_keywords) or is_time_query
 
         # Timetable / Routine queries
         timetable_keywords = [
             'time table', 'timetable', 'routine', 'class routine', 'class schedule',
             'periods', 'period', 'section g', 'sec g', 'monday routine', 'tuesday routine',
-            'wednesday routine', 'thursday routine', 'friday routine', 'schedule'
+            'wednesday routine', 'thursday routine', 'friday routine', 'schedule',
+            'my classes', 'classes today', "today's classes", 'today class', "today's class",
+            'what classes', 'which class', 'which classes', 'class timing', 'class timings',
+            'lecture', 'lectures'
         ]
         is_timetable_query = any(k in q_lower for k in timetable_keywords)
 
@@ -389,6 +460,9 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
             f"{timetable_context}\n"
             "PERSONALITY & TONE GUIDELINES:\n"
             "• Tone: Warm, approachable, engaging, and enthusiastic like a helpful college senior/mentor. Use relevant emojis naturally (🎓, 📚, ✨, 🚀, 📢, 💡, 🎬).\n"
+            "• Real-Time & Date Awareness: You ALWAYS know the exact live system date, day of week, time, and year provided in the clock context above. State the real date/time directly if asked.\n"
+            "• 'Today' & 'Tomorrow' Routine Queries: When a student asks 'what classes do I have today?' or 'today schedule', automatically use the current day of the week from the live clock (e.g. if today is Thursday, provide Thursday's classes). When asked about 'tomorrow', provide the next day's classes.\n"
+            "• Announcement Prioritization: Always prioritize CURRENT & UPCOMING announcements first. When asked generally about announcements, showcase the active notices first. If asked specifically about 'past announcements', 'archives', or 'previous notices', display the concluded notices clearly labeled with past event status.\n"
             "• Language & Style: Fluent English with full natural understanding of Hinglish (e.g., if a student asks 'aaj class hai kya?' or 'Bollywood day kab hai?', reply helpfully in natural friendly English or easy Hinglish).\n"
             "• Formatting: Keep answers ultra-clean, structured with bold highlights and bullet points. Never dump giant walls of text.\n"
             "• Timetable & Routine Queries: Use the structured timetable above to provide exact period timings, subjects, faculty names, room numbers, and group divisions (Group 1 vs Group 2). Never clip or confuse periods.\n"
