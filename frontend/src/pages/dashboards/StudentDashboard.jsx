@@ -45,6 +45,7 @@ export default function StudentDashboard() {
   const [announcements, setAnnouncements] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [typeFilter, setTypeFilter] = useState('all'); // 'all' | 'event' | 'academic'
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [courseFilter, setCourseFilter] = useState('all'); // 'all' or 'my_course'
@@ -63,6 +64,7 @@ export default function StudentDashboard() {
     setError(null);
     try {
       const params = {};
+      if (typeFilter !== 'all') params.type = typeFilter;
       if (selectedCategory !== 'all') params.category = selectedCategory;
       if (courseFilter === 'my_course' && user?.course) params.course = user.course;
       if (searchQuery.trim()) params.search = searchQuery.trim();
@@ -97,7 +99,7 @@ export default function StudentDashboard() {
   useEffect(() => {
     fetchAnnouncements();
     fetchStudentPreferences();
-  }, [selectedCategory, courseFilter]);
+  }, [selectedCategory, courseFilter, typeFilter]);
 
   const handleSearchSubmit = (e) => {
     e.preventDefault();
@@ -297,6 +299,70 @@ export default function StudentDashboard() {
           </div>
         </div>
 
+        {/* Notice Type Classification Selector */}
+        <div style={{ display: 'flex', gap: '0.4rem', marginBottom: '0.85rem', background: '#f1f5f9', padding: '0.3rem', borderRadius: 'var(--radius-md)', width: 'fit-content' }}>
+          <button
+            type="button"
+            onClick={() => setTypeFilter('all')}
+            style={{
+              padding: '0.35rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              background: typeFilter === 'all' ? 'white' : 'transparent',
+              color: typeFilter === 'all' ? 'var(--slate-900)' : 'var(--slate-600)',
+              fontWeight: typeFilter === 'all' ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: typeFilter === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            All Bulletins
+          </button>
+          <button
+            type="button"
+            onClick={() => setTypeFilter('event')}
+            style={{
+              padding: '0.35rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              background: typeFilter === 'event' ? 'white' : 'transparent',
+              color: typeFilter === 'event' ? 'var(--primary-700)' : 'var(--slate-600)',
+              fontWeight: typeFilter === 'event' ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: typeFilter === 'event' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <Sparkles size={13} color="var(--primary-600)" /> Campus Events
+          </button>
+          <button
+            type="button"
+            onClick={() => setTypeFilter('academic')}
+            style={{
+              padding: '0.35rem 0.85rem',
+              borderRadius: 'var(--radius-sm)',
+              border: 'none',
+              background: typeFilter === 'academic' ? 'white' : 'transparent',
+              color: typeFilter === 'academic' ? '#b45309' : 'var(--slate-600)',
+              fontWeight: typeFilter === 'academic' ? 700 : 500,
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+              boxShadow: typeFilter === 'academic' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              transition: 'all 0.15s ease'
+            }}
+          >
+            <FileText size={13} color="#d97706" /> Academic Notices
+          </button>
+        </div>
+
         {/* Category Pills */}
         <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
           {CATEGORIES.map((cat) => {
@@ -386,24 +452,64 @@ export default function StudentDashboard() {
                 onClick={() => setSelectedAnnouncement(item)}
               >
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', gap: '0.5rem' }}>
-                    <span
-                      style={{
-                        background: catStyle.bg,
-                        color: catStyle.text,
-                        border: `1px solid ${catStyle.border}`,
-                        padding: '0.2rem 0.55rem',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.75rem',
-                        fontWeight: 700,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.04em'
-                      }}
-                    >
-                      {item.category}
-                    </span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      {item.announcement_type === 'academic' || item.category === 'academic' ? (
+                        <span
+                          style={{
+                            background: '#fef3c7',
+                            color: '#92400e',
+                            border: '1px solid #fde68a',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            letterSpacing: '0.03em',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <FileText size={11} /> ACADEMIC NOTICE
+                        </span>
+                      ) : (
+                        <span
+                          style={{
+                            background: '#ede9fe',
+                            color: '#6d28d9',
+                            border: '1px solid #ddd6fe',
+                            padding: '0.2rem 0.55rem',
+                            borderRadius: 'var(--radius-full)',
+                            fontSize: '0.72rem',
+                            fontWeight: 800,
+                            letterSpacing: '0.03em',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <Sparkles size={11} /> CAMPUS EVENT
+                        </span>
+                      )}
 
-                    <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                      <span
+                        style={{
+                          background: catStyle.bg,
+                          color: catStyle.text,
+                          border: `1px solid ${catStyle.border}`,
+                          padding: '0.2rem 0.55rem',
+                          borderRadius: 'var(--radius-full)',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em'
+                        }}
+                      >
+                        {item.category}
+                      </span>
+                    </div>
+
+                    <span className="badge badge-info" style={{ fontSize: '0.72rem' }}>
                       {item.course === 'All' ? 'All Courses' : item.course}
                     </span>
                   </div>
@@ -446,7 +552,7 @@ export default function StudentDashboard() {
                   </div>
 
                   <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                    {item.registration_link && (
+                    {item.announcement_type !== 'academic' && item.registration_link && (
                       <a
                         href={item.registration_link}
                         target="_blank"
@@ -462,7 +568,7 @@ export default function StudentDashboard() {
                       type="button"
                       onClick={() => setSelectedAnnouncement(item)}
                       className="btn btn-secondary"
-                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', flex: item.registration_link ? 0 : 1 }}
+                      style={{ padding: '0.35rem 0.75rem', fontSize: '0.8rem', flex: (item.announcement_type !== 'academic' && item.registration_link) ? 0 : 1 }}
                     >
                       View Details
                     </button>
@@ -511,7 +617,16 @@ export default function StudentDashboard() {
               <X size={16} />
             </button>
 
-            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'center' }}>
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+              {selectedAnnouncement.announcement_type === 'academic' || selectedAnnouncement.category === 'academic' ? (
+                <span className="badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontWeight: 800 }}>
+                  <FileText size={12} style={{ marginRight: 4 }} /> OFFICIAL ACADEMIC CIRCULAR
+                </span>
+              ) : (
+                <span className="badge" style={{ background: '#ede9fe', color: '#6d28d9', border: '1px solid #ddd6fe', fontWeight: 800 }}>
+                  <Sparkles size={12} style={{ marginRight: 4 }} /> CAMPUS EVENT
+                </span>
+              )}
               <span className="badge badge-info" style={{ textTransform: 'uppercase', fontWeight: 700 }}>
                 {selectedAnnouncement.category}
               </span>
@@ -527,16 +642,24 @@ export default function StudentDashboard() {
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', padding: '0.75rem 1rem', background: 'var(--slate-50)', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', fontSize: '0.85rem' }}>
               {selectedAnnouncement.event_date && (
                 <div>
-                  <span style={{ color: 'var(--slate-500)' }}>Event Date: </span>
+                  <span style={{ color: 'var(--slate-500)' }}>
+                    {selectedAnnouncement.announcement_type === 'academic' ? 'Effective Date: ' : 'Event Date: '}
+                  </span>
                   <strong>{selectedAnnouncement.event_date}</strong>
                 </div>
               )}
               {selectedAnnouncement.deadline && (
                 <div>
-                  <span style={{ color: '#b45309' }}>Registration Deadline: </span>
+                  <span style={{ color: '#b45309' }}>
+                    {selectedAnnouncement.announcement_type === 'academic' ? 'Action / Due Date: ' : 'Registration Deadline: '}
+                  </span>
                   <strong style={{ color: '#b45309' }}>{selectedAnnouncement.deadline}</strong>
                 </div>
               )}
+              <div>
+                <span style={{ color: 'var(--slate-500)' }}>Classification: </span>
+                <strong>{selectedAnnouncement.announcement_type === 'academic' ? 'Academic Circular' : 'Campus Event'}</strong>
+              </div>
               <div>
                 <span style={{ color: 'var(--slate-500)' }}>Posted by: </span>
                 <strong style={{ textTransform: 'capitalize' }}>{selectedAnnouncement.created_by_role}</strong>
@@ -548,7 +671,7 @@ export default function StudentDashboard() {
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', borderTop: '1px solid var(--slate-100)', paddingTop: '1rem' }}>
-              {selectedAnnouncement.registration_link && (
+              {selectedAnnouncement.announcement_type !== 'academic' && selectedAnnouncement.registration_link && (
                 <a
                   href={selectedAnnouncement.registration_link}
                   target="_blank"

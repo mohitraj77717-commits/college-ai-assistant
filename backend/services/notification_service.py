@@ -10,7 +10,7 @@ def fanout_announcement_notifications(announcement_id: int) -> int:
     Returns the number of notifications generated.
     """
     announcement = query_db(
-        "SELECT id, title, description, category, course FROM announcements WHERE id = ?",
+        "SELECT id, title, description, category, course, announcement_type FROM announcements WHERE id = ?",
         (announcement_id,),
         one=True
     )
@@ -19,9 +19,12 @@ def fanout_announcement_notifications(announcement_id: int) -> int:
 
     category = announcement['category'].lower()
     target_course = announcement['course']
+    explicit_type = (announcement.get('announcement_type') or '').lower().strip()
 
-    # Determine notification type
-    if category in ('academic', 'exam', 'examination'):
+    # Determine notification type: respect explicit announcement_type, fallback to category
+    if explicit_type in ('academic', 'event'):
+        notification_type = explicit_type
+    elif category in ('academic', 'exam', 'examination', 'general'):
         notification_type = 'academic'
     else:
         notification_type = 'event'

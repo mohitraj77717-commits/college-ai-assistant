@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS announcements (
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     category TEXT NOT NULL, -- e.g. 'coding', 'ai-ml', 'robotics', 'cultural', 'academic', 'general'
+    announcement_type TEXT NOT NULL DEFAULT 'event' CHECK (announcement_type IN ('event', 'academic')),
     event_date TEXT,
     deadline TEXT,
     registration_link TEXT,
@@ -59,6 +60,7 @@ CREATE TABLE IF NOT EXISTS teacher_submissions (
     title TEXT NOT NULL,
     description TEXT NOT NULL,
     category TEXT NOT NULL,
+    announcement_type TEXT NOT NULL DEFAULT 'event' CHECK (announcement_type IN ('event', 'academic')),
     event_date TEXT,
     deadline TEXT,
     registration_link TEXT,

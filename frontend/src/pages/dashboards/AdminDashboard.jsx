@@ -68,7 +68,8 @@ export default function AdminDashboard() {
   // Admin Direct Announcement Form State
   const [directAnnounce, setDirectAnnounce] = useState({
     title: '',
-    category: 'academic',
+    announcement_type: 'event', // 'event' | 'academic'
+    category: 'coding',
     course: 'All',
     event_date: '',
     deadline: '',
@@ -311,10 +312,12 @@ export default function AdminDashboard() {
     try {
       const res = await api.adminCreateAnnouncement(directAnnounce);
       if (res.success) {
-        setMessage(`Official announcement "${directAnnounce.title}" published!`);
+        const typeLabel = directAnnounce.announcement_type === 'academic' ? 'Academic Circular' : 'Campus Event';
+        setMessage(`Official ${typeLabel} "${directAnnounce.title}" published!`);
         setDirectAnnounce({
           title: '',
-          category: 'academic',
+          announcement_type: 'event',
+          category: 'coding',
           course: 'All',
           event_date: '',
           deadline: '',
@@ -903,13 +906,130 @@ export default function AdminDashboard() {
           </div>
 
           <form onSubmit={handleDirectAnnounceSubmit}>
+            {/* Post Classification Selector: Campus Event vs Academic Circular */}
+            <div style={{
+              marginBottom: '1.5rem',
+              background: '#f8fafc',
+              border: '1px solid var(--slate-200)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1.25rem'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <label style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--slate-800)' }}>
+                  Announcement Classification & Student Feed Routing *
+                </label>
+                <span className="badge badge-info" style={{ fontSize: '0.75rem' }}>
+                  {directAnnounce.announcement_type === 'event' ? 'Campus Event Mode' : 'Academic Circular Mode'}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
+                {/* Option 1: Campus Event */}
+                <div
+                  onClick={() => setDirectAnnounce({
+                    ...directAnnounce,
+                    announcement_type: 'event',
+                    category: directAnnounce.category === 'academic' ? 'coding' : directAnnounce.category
+                  })}
+                  style={{
+                    cursor: 'pointer',
+                    padding: '1.15rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: directAnnounce.announcement_type === 'event' ? '2px solid var(--primary-600)' : '1px solid var(--slate-200)',
+                    background: directAnnounce.announcement_type === 'event' ? '#f5f3ff' : 'white',
+                    boxShadow: directAnnounce.announcement_type === 'event' ? '0 4px 12px rgba(124, 58, 237, 0.12)' : 'none',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      background: directAnnounce.announcement_type === 'event' ? 'var(--primary-600)' : 'var(--slate-100)',
+                      color: directAnnounce.announcement_type === 'event' ? 'white' : 'var(--slate-600)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem'
+                    }}>
+                      <Sparkles size={15} />
+                    </div>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: directAnnounce.announcement_type === 'event' ? 'var(--primary-700)' : 'var(--slate-800)' }}>
+                        Campus Event
+                      </span>
+                    </div>
+                    {directAnnounce.announcement_type === 'event' && (
+                      <span className="badge badge-primary" style={{ marginLeft: 'auto', fontSize: '0.7rem' }}>
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--slate-600)', margin: 0, lineHeight: 1.45 }}>
+                    Hackathons, coding contests, technical workshops, festivals. Includes event dates, external registration URLs, and triggers student <strong>Event Notifications</strong>.
+                  </p>
+                </div>
+
+                {/* Option 2: Academic Notice / Circular */}
+                <div
+                  onClick={() => setDirectAnnounce({
+                    ...directAnnounce,
+                    announcement_type: 'academic',
+                    category: 'academic',
+                    registration_link: ''
+                  })}
+                  style={{
+                    cursor: 'pointer',
+                    padding: '1.15rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: directAnnounce.announcement_type === 'academic' ? '2px solid #d97706' : '1px solid var(--slate-200)',
+                    background: directAnnounce.announcement_type === 'academic' ? '#fffbeb' : 'white',
+                    boxShadow: directAnnounce.announcement_type === 'academic' ? '0 4px 12px rgba(217, 119, 6, 0.12)' : 'none',
+                    transition: 'all 0.2s ease',
+                    position: 'relative'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.4rem' }}>
+                    <div style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      background: directAnnounce.announcement_type === 'academic' ? '#d97706' : 'var(--slate-100)',
+                      color: directAnnounce.announcement_type === 'academic' ? 'white' : 'var(--slate-600)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '0.85rem'
+                    }}>
+                      <FileText size={15} />
+                    </div>
+                    <div>
+                      <span style={{ fontWeight: 800, fontSize: '0.95rem', color: directAnnounce.announcement_type === 'academic' ? '#b45309' : 'var(--slate-800)' }}>
+                        Academic Announcement / Circular
+                      </span>
+                    </div>
+                    {directAnnounce.announcement_type === 'academic' && (
+                      <span className="badge" style={{ marginLeft: 'auto', fontSize: '0.7rem', background: '#fde68a', color: '#92400e', border: '1px solid #fcd34d' }}>
+                        Selected
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--slate-600)', margin: 0, lineHeight: 1.45 }}>
+                    Official university timetables, exam date sheets, holiday notices, fee bulletins. Tagged as <strong>ACADEMIC NOTICE</strong>, disables RSVP buttons, and triggers <strong>Academic Notifications</strong>.
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div style={{ marginBottom: '1.25rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
-                Announcement Title *
+                {directAnnounce.announcement_type === 'academic' ? 'Notice / Circular Title *' : 'Event Title *'}
               </label>
               <input
                 type="text"
-                placeholder="e.g. End-Semester Examination Schedule Announced"
+                placeholder={directAnnounce.announcement_type === 'academic' ? 'e.g. End-Semester Examination Schedule Announced' : 'e.g. HackSprint 2026: 36-Hour Hackathon'}
                 value={directAnnounce.title}
                 onChange={(e) => setDirectAnnounce({ ...directAnnounce, title: e.target.value })}
                 required
@@ -972,65 +1092,107 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
-                  Event Date (optional)
-                </label>
-                <input
-                  type="date"
-                  value={directAnnounce.event_date}
-                  onChange={(e) => setDirectAnnounce({ ...directAnnounce, event_date: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    border: '1px solid var(--slate-300)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.9rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
+            {directAnnounce.announcement_type === 'event' ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                    Event Date (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={directAnnounce.event_date}
+                    onChange={(e) => setDirectAnnounce({ ...directAnnounce, event_date: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      border: '1px solid var(--slate-300)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
-                  Deadline (optional)
-                </label>
-                <input
-                  type="date"
-                  value={directAnnounce.deadline}
-                  onChange={(e) => setDirectAnnounce({ ...directAnnounce, deadline: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    border: '1px solid var(--slate-300)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.9rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
-              </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                    Registration Deadline (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={directAnnounce.deadline}
+                    onChange={(e) => setDirectAnnounce({ ...directAnnounce, deadline: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      border: '1px solid var(--slate-300)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
 
-              <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
-                  Registration Link (optional)
-                </label>
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={directAnnounce.registration_link}
-                  onChange={(e) => setDirectAnnounce({ ...directAnnounce, registration_link: e.target.value })}
-                  style={{
-                    width: '100%',
-                    padding: '0.65rem 0.85rem',
-                    border: '1px solid var(--slate-300)',
-                    borderRadius: 'var(--radius-md)',
-                    fontSize: '0.9rem',
-                    fontFamily: 'inherit'
-                  }}
-                />
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                    Registration / RSVP Link (optional)
+                  </label>
+                  <input
+                    type="url"
+                    placeholder="https://forms.gle/... or event URL"
+                    value={directAnnounce.registration_link}
+                    onChange={(e) => setDirectAnnounce({ ...directAnnounce, registration_link: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      border: '1px solid var(--slate-300)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                    Effective / Start Date (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={directAnnounce.event_date}
+                    onChange={(e) => setDirectAnnounce({ ...directAnnounce, event_date: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      border: '1px solid var(--slate-300)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
+                    Action / Submission Deadline (optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={directAnnounce.deadline}
+                    onChange={(e) => setDirectAnnounce({ ...directAnnounce, deadline: e.target.value })}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      border: '1px solid var(--slate-300)',
+                      borderRadius: 'var(--radius-md)',
+                      fontSize: '0.9rem',
+                      fontFamily: 'inherit'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, color: 'var(--slate-700)', marginBottom: '0.4rem' }}>
@@ -1040,7 +1202,7 @@ export default function AdminDashboard() {
                 rows={4}
                 value={directAnnounce.description}
                 onChange={(e) => setDirectAnnounce({ ...directAnnounce, description: e.target.value })}
-                placeholder="Official notice instructions, examination rules, or event circular..."
+                placeholder={directAnnounce.announcement_type === 'academic' ? 'Official notice details, examination timings, venue instructions, or routine notes...' : 'Event theme, eligibility, rules, prize pool, schedule...'}
                 required
                 style={{
                   width: '100%',
@@ -1058,9 +1220,18 @@ export default function AdminDashboard() {
               type="submit"
               disabled={postingAnnounce}
               className="btn btn-primary"
-              style={{ padding: '0.75rem 1.5rem', fontSize: '0.95rem' }}
+              style={{
+                padding: '0.75rem 1.5rem',
+                fontSize: '0.95rem',
+                background: directAnnounce.announcement_type === 'academic' ? '#d97706' : undefined,
+                borderColor: directAnnounce.announcement_type === 'academic' ? '#b45309' : undefined
+              }}
             >
-              {postingAnnounce ? 'Publishing...' : 'Publish Official Announcement Now'}
+              {postingAnnounce
+                ? 'Publishing...'
+                : directAnnounce.announcement_type === 'academic'
+                  ? 'Publish Official Academic Notice Now'
+                  : 'Publish Campus Event Now'}
             </button>
           </form>
         </div>

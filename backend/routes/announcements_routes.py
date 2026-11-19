@@ -17,10 +17,11 @@ def get_announcements():
     course = request.args.get('course', '').strip()
     category = request.args.get('category', '').strip()
     search = request.args.get('search', '').strip()
+    announcement_type = request.args.get('type', '').strip().lower() or request.args.get('announcement_type', '').strip().lower()
     limit = min(int(request.args.get('limit', 50)), 100)
 
     query = """
-        SELECT a.id, a.title, a.description, a.category, a.event_date,
+        SELECT a.id, a.title, a.description, a.category, a.announcement_type, a.event_date,
                a.deadline, a.registration_link, a.course, a.created_by_role,
                a.created_by_id, a.status, a.created_at
         FROM announcements a
@@ -35,6 +36,10 @@ def get_announcements():
     if category and category.lower() != 'all':
         query += " AND LOWER(a.category) = LOWER(?)"
         params.append(category)
+
+    if announcement_type and announcement_type in ('event', 'academic'):
+        query += " AND a.announcement_type = ?"
+        params.append(announcement_type)
 
     if search:
         query += " AND (a.title LIKE ? OR a.description LIKE ?)"
@@ -58,7 +63,7 @@ def get_announcement_by_id(announcement_id: int):
     """Fetch a single announcement by ID."""
     announcement = query_db(
         """
-        SELECT id, title, description, category, event_date, deadline,
+        SELECT id, title, description, category, announcement_type, event_date, deadline,
                registration_link, course, created_by_role, status, created_at
         FROM announcements
         WHERE id = ? AND status = 'published'

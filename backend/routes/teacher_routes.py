@@ -27,6 +27,7 @@ def submit_announcement():
     title = data.get('title', '').strip()
     description = data.get('description', '').strip()
     category = data.get('category', '').strip().lower()
+    announcement_type = data.get('announcement_type', '').strip().lower()
     event_date = data.get('event_date', '').strip() or None
     deadline = data.get('deadline', '').strip() or None
     registration_link = data.get('registration_link', '').strip() or None
@@ -38,6 +39,9 @@ def submit_announcement():
             'status': 'error',
             'message': 'Title, description, and category are required.'
         }), 400
+
+    if announcement_type not in ('event', 'academic'):
+        announcement_type = 'academic' if category in ('academic', 'exam', 'examination', 'general') else 'event'
 
     saved_doc_path = None
     original_filename = None
@@ -66,12 +70,12 @@ def submit_announcement():
     submission_id = execute_db(
         """
         INSERT INTO teacher_submissions (
-            teacher_id, title, description, category, event_date,
+            teacher_id, title, description, category, announcement_type, event_date,
             deadline, registration_link, course, document_path, submission_status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending')
         """,
         (
-            teacher_id, title, description, category, event_date,
+            teacher_id, title, description, category, announcement_type, event_date,
             deadline, registration_link, course, saved_doc_path
         )
     )

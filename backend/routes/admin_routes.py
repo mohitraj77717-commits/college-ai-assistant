@@ -168,17 +168,24 @@ def review_teacher_submission(submission_id: int):
         )
 
         # 2. Publish to announcements table
+        # Determine announcement_type from teacher submission or category
+        submission_dict = dict(submission)
+        submission_type = (submission_dict.get('announcement_type') or '').lower().strip()
+        if submission_type not in ('event', 'academic'):
+            submission_type = 'academic' if submission['category'].lower() in ('academic', 'exam', 'examination', 'general') else 'event'
+
         announcement_id = execute_db(
             """
             INSERT INTO announcements (
-                title, description, category, event_date, deadline,
+                title, description, category, announcement_type, event_date, deadline,
                 registration_link, course, created_by_role, created_by_id, status
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'teacher', ?, 'published')
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'teacher', ?, 'published')
             """,
             (
                 submission['title'],
                 submission['description'],
                 submission['category'],
+                submission_type,
                 submission['event_date'],
                 submission['deadline'],
                 submission['registration_link'],
@@ -246,6 +253,7 @@ def admin_create_announcement():
     title = data.get('title', '').strip()
     description = data.get('description', '').strip()
     category = data.get('category', '').strip().lower()
+    announcement_type = data.get('announcement_type', '').strip().lower()
     event_date = data.get('event_date', '').strip() or None
     deadline = data.get('deadline', '').strip() or None
     registration_link = data.get('registration_link', '').strip() or None
@@ -254,14 +262,17 @@ def admin_create_announcement():
     if not title or not description or not category:
         return jsonify({'status': 'error', 'message': 'Title, description, and category are required.'}), 400
 
+    if announcement_type not in ('event', 'academic'):
+        announcement_type = 'academic' if category in ('academic', 'exam', 'examination', 'general') else 'event'
+
     announcement_id = execute_db(
         """
         INSERT INTO announcements (
-            title, description, category, event_date, deadline,
+            title, description, category, announcement_type, event_date, deadline,
             registration_link, course, created_by_role, created_by_id, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, 'admin', ?, 'published')
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'admin', ?, 'published')
         """,
-        (title, description, category, event_date, deadline, registration_link, course, admin_id)
+        (title, description, category, announcement_type, event_date, deadline, registration_link, course, admin_id)
     )
 
     # Phase 4: Intelligently generate notifications for eligible students
