@@ -45,6 +45,14 @@ def admin_upload_document():
             )
         )
 
+        # Fan out notifications to students for approved academic documents
+        if approval_status == 'approved':
+            try:
+                from services.notification_service import fanout_document_notifications
+                fanout_document_notifications(doc_id)
+            except Exception as notif_err:
+                print(f"Warning: Failed to fan out document notification: {notif_err}")
+
         return jsonify({
             'status': 'success',
             'message': f"Official college document '{title}' uploaded successfully.",
@@ -108,6 +116,13 @@ def approve_document(doc_id: int):
         return jsonify({'status': 'error', 'message': 'Document not found.'}), 404
 
     execute_db("UPDATE documents SET approval_status = 'approved' WHERE id = ?", (doc_id,))
+
+    # Fan out notifications to students for newly approved academic documents
+    try:
+        from services.notification_service import fanout_document_notifications
+        fanout_document_notifications(doc_id)
+    except Exception as notif_err:
+        print(f"Warning: Failed to fan out document notification: {notif_err}")
 
     return jsonify({
         'status': 'success',

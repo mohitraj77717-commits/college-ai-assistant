@@ -327,22 +327,6 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
                     f"  Details: {a['description']}\n\n"
                 )
 
-        system_instruction = (
-            "You are 'Campus Buddy AI' 🎓✨, a super friendly, energetic, and helpful college senior and campus guide. "
-            "You help your fellow students and faculty navigate college life using TWO official knowledge bases:\n"
-            "1. LIVE CAMPUS ANNOUNCEMENTS & EVENTS (provided in context below).\n"
-            "2. APPROVED COLLEGE DOCUMENTS & SYLLABI (retrieved via the File Search tool).\n\n"
-            f"{announcements_context}\n"
-            "PERSONALITY & TONE GUIDELINES:\n"
-            "• Tone: Warm, approachable, engaging, and enthusiastic like a helpful college senior/mentor. Use relevant emojis naturally (🎓, 📚, ✨, 🚀, 📢, 💡, 🎬).\n"
-            "• Language & Style: Fluent English with full natural understanding of Hinglish (e.g., if a student asks 'aaj class hai kya?' or 'Bollywood day kab hai?', reply helpfully in natural friendly English or easy Hinglish).\n"
-            "• Formatting: Keep answers ultra-clean, structured with bold highlights and bullet points. Never dump giant walls of text.\n"
-            "• Event Queries: For notices, class updates, fests, or club events, refer to the live announcements feed above.\n"
-            "• Academic & Circular Queries: For syllabus, units, exam rules, or guidelines, refer to the File Search tool.\n"
-            "• Accuracy & Grounding: Stick strictly to verified facts from the announcements and documents. Never fabricate dates or rules.\n"
-            "• If Not Found: Say nicely: 'Oops! I couldn’t find info about that in our official circulars or event notices yet. 🏫 Best to check with your department coordinator or admin!'"
-        )
-
         # Smart Query Routing:
         q_lower = clean_message.lower().strip()
 
@@ -360,10 +344,18 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
             'announcement', 'announcements', 'event', 'events', 'notice', 'notices',
             'today', 'todays', "today's", 'tomorrow', 'class', 'classes', 'stambh',
             'bollywood', 'fest', 'workshop', 'workshops', 'hackathon', 'hackathons',
-            'cultural', 'schedule', 'register', 'registration', 'club', 'clubs',
+            'cultural', 'register', 'registration', 'club', 'clubs',
             'aaj', 'kal', 'kab', 'session', 'seminar'
         ]
         is_event_query = any(k in q_lower for k in event_keywords)
+
+        # Timetable / Routine queries
+        timetable_keywords = [
+            'time table', 'timetable', 'routine', 'class routine', 'class schedule',
+            'periods', 'period', 'section g', 'sec g', 'monday routine', 'tuesday routine',
+            'wednesday routine', 'thursday routine', 'friday routine', 'schedule'
+        ]
+        is_timetable_query = any(k in q_lower for k in timetable_keywords)
 
         # Academic documents, syllabus, rules, exams
         academic_keywords = [
@@ -378,10 +370,37 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
         ]
         is_academic_query = any(k in q_lower for k in academic_keywords)
 
+        # Timetable context injection for 100% precision without 2D table scrambling
+        timetable_context = ""
+        if is_timetable_query:
+            try:
+                from services.timetable_service import get_structured_timetable_context
+                timetable_context = "\nOFFICIAL VERIFIED TIMETABLE / CLASS ROUTINE (STRUCTURED GROUNDING):\n" + get_structured_timetable_context(clean_message)
+            except Exception as tt_err:
+                logger.warning(f"Failed to load structured timetable: {tt_err}")
+
+        system_instruction = (
+            "You are 'Campus Buddy AI' 🎓✨, a super friendly, energetic, and helpful college senior and campus guide. "
+            "You help your fellow students and faculty navigate college life using official college knowledge:\n"
+            "1. LIVE CAMPUS ANNOUNCEMENTS & EVENTS (provided in context below).\n"
+            "2. OFFICIAL CLASS ROUTINE & TIMETABLE (provided in structured context below).\n"
+            "3. APPROVED COLLEGE DOCUMENTS & SYLLABI (retrieved via the File Search tool if attached).\n\n"
+            f"{announcements_context}\n"
+            f"{timetable_context}\n"
+            "PERSONALITY & TONE GUIDELINES:\n"
+            "• Tone: Warm, approachable, engaging, and enthusiastic like a helpful college senior/mentor. Use relevant emojis naturally (🎓, 📚, ✨, 🚀, 📢, 💡, 🎬).\n"
+            "• Language & Style: Fluent English with full natural understanding of Hinglish (e.g., if a student asks 'aaj class hai kya?' or 'Bollywood day kab hai?', reply helpfully in natural friendly English or easy Hinglish).\n"
+            "• Formatting: Keep answers ultra-clean, structured with bold highlights and bullet points. Never dump giant walls of text.\n"
+            "• Timetable & Routine Queries: Use the structured timetable above to provide exact period timings, subjects, faculty names, room numbers, and group divisions (Group 1 vs Group 2). Never clip or confuse periods.\n"
+            "• Event Queries: For notices, class updates, fests, or club events, refer to the live announcements feed above.\n"
+            "• Academic & Circular Queries: For syllabus, units, exam rules, or guidelines, refer to the File Search documents.\n"
+            "• Accuracy & Grounding: Stick strictly to verified facts from the announcements, routine, and documents. Never fabricate dates or rules.\n"
+            "• If Not Found: Say nicely: 'Oops! I couldn’t find info about that in our official circulars or event notices yet. 🏫 Best to check with your department coordinator or admin!'"
+        )
+
         # Decide whether to attach FileSearch tool:
-        # If it's a greeting or asking about announcements/events and NOT an academic query,
-        # skip FileSearch for instant response (< 1s) from the prompt context.
-        use_file_search = is_academic_query or (not is_greeting and not is_event_query)
+        # Timetables and events are already structured in context. Use FileSearch only for deep document/syllabus search.
+        use_file_search = (is_academic_query and not is_timetable_query) or (not is_greeting and not is_event_query and not is_timetable_query)
 
         tools = None
         if use_file_search and store_name:
@@ -426,7 +445,13 @@ def query_college_chatbot(message: str, user_role: str = 'student') -> Dict[str,
 
         # Extract source references
         sources = []
-        if use_file_search:
+        if is_timetable_query:
+            sources.append({
+                'id': 'routine-doc',
+                'title': 'B teach 1st year Routine (Section G)',
+                'filename': '1ST YEAR routine.PDF'
+            })
+        elif use_file_search:
             for doc in indexed_docs:
                 sources.append({
                     'id': doc['id'],
